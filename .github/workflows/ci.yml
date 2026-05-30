@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+      - preview
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: barberapp
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create .env file
+        run: |
+          printf '%s\n' \
+            'NODE_ENV=test' \
+            'PORT=3001' \
+            'DB_HOST=localhost' \
+            'DB_PORT=5432' \
+            'DB_USER=postgres' \
+            'DB_PASS=postgres' \
+            'DB_NAME=barberapp' \
+            'JWT_SECRET=ci-jwt-secret' \
+            'JWT_REFRESH_SECRET=ci-jwt-refresh-secret' \
+            'FRONTEND_URL=http://localhost:8081' \
+            'ALLOWED_ORIGINS=http://localhost:8081' \
+            > .env
+
+      - name: Enable uuid-ossp extension
+        run: psql postgresql://postgres:postgres@localhost:5432/barberapp -c 'CREATE EXTENSION IF NOT EXISTS "uuid-ossp";'
+
+      - name: Type check
+        run: npx tsc --noEmit -p tsconfig.build.json
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Check formatting
+        run: npm run format:check
+
+      - name: Start server
+        run: npm start &
+
+      - name: Wait for server
+        run: |
+          for i in {1..30}; do
+            if curl -s http://localhost:3001/api/docs > /dev/null 2>&1; then
+              echo "Server ready"
+              break
+            fi
+            echo "Waiting... ($i/30)"
+            sleep 2
+          done
+
+      - name: Run tests
+        run: npm run test -- --coverage --runInBand
+
+      - name: Build project
+        run: npm run build
