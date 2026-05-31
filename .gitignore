@@ -42,6 +42,9 @@ lerna-debug.log*
 .env.production.local
 .env.local
 
+# claude
+.claude
+
 # temp directory
 .temp
 .tmp
