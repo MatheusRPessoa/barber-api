@@ -5,7 +5,7 @@ export abstract class BaseEntity {
   @PrimaryGeneratedColumn('uuid')
   ID: string;
 
-  @Column({ nullable: true })
+  @Column({ nullable: true, type: 'varchar' })
   CRIADO_POR: string | null;
 
   @CreateDateColumn()
@@ -14,13 +14,13 @@ export abstract class BaseEntity {
   @Column({ type: 'enum', enum: BaseEntityStatusEnum, default: BaseEntityStatusEnum.ATIVO })
   STATUS: BaseEntityStatusEnum;
 
-  @Column({ nullable: true })
+  @Column({ nullable: true, type: 'varchar' })
   ATUALIZADO_POR: string | null;
 
   @Column({ nullable: true, type: 'timestamp' })
   ATUALIZADO_EM: Date | null;
 
-  @Column({ nullable: true })
+  @Column({ nullable: true, type: 'varchar' })
   EXCLUIDO_POR: string | null;
 
   @Column({ nullable: true, type: 'timestamp' })

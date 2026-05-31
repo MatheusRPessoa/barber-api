@@ -7,7 +7,7 @@ export class Barber extends BaseEntity {
   @Column()
   SHOP_NAME: string;
 
-  @Column({ nullable: true })
+  @Column({ nullable: true, type: 'varchar' })
   CNPJ: string | null;
 
   @Column({ type: 'float', default: 0 })

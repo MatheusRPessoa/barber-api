@@ -20,10 +20,10 @@ export class User extends BaseEntity {
   @Column({ type: 'enum', enum: UserType })
   TYPE: UserType;
 
-  @Column({ nullable: true })
+  @Column({ nullable: true, type: 'varchar' })
   REFRESH_TOKEN: string | null;
 
-  @Column({ nullable: true })
+  @Column({ nullable: true, type: 'varchar' })
   PASSWORD_RESET_TOKEN: string | null;
 
   @Column({ nullable: true, type: 'timestamp' })
