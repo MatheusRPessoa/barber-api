@@ -9,7 +9,6 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
 
   app.useLogger(app.get(Logger));
-
   app.setGlobalPrefix('api');
 
   app.enableCors({
@@ -19,14 +18,13 @@ async function bootstrap() {
   });
 
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
-
   app.useGlobalFilters(new HttpExceptionFilter());
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('BarberApp API')
     .setDescription('API para o app mobile BarberApp')
     .setVersion('1.0')
-    .addBearerAuth()
+    .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }, 'JWT-auth')
     .build();
 
   SwaggerModule.setup('docs', app, SwaggerModule.createDocument(app, swaggerConfig), {
