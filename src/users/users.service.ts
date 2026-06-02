@@ -13,4 +13,8 @@ export class UsersService {
       select: { ID: true, NAME: true, EMAIL: true, TYPE: true, CRIADO_EM: true },
     });
   }
+
+  updateName(id: string, name: string) {
+    return this.repo.update(id, { NAME: name });
+  }
 }

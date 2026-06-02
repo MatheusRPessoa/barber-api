@@ -13,6 +13,6 @@ export class Service extends BaseEntity {
   @Column()
   DURATION_MINUTES: number;
 
-  @ManyToOne(() => Barber, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Barber, (barber) => barber.SERVICES, { onDelete: 'CASCADE' })
   BARBER: Barber;
 }

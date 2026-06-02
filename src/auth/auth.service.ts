@@ -33,6 +33,11 @@ export class AuthService {
     const existing = await this.usersRepo.findOne({ where: { EMAIL: dto.EMAIL } });
     if (existing) throw new ConflictException('Email already in use');
 
+    if (dto.TYPE === UserType.BARBER) {
+      const existingCnpj = await this.barbersRepo.findOne({ where: { CNPJ: dto.CNPJ } });
+      if (existingCnpj) throw new ConflictException('CNPJ already in use');
+    }
+
     const user = this.usersRepo.create({
       NAME: dto.NAME,
       EMAIL: dto.EMAIL,
@@ -43,7 +48,18 @@ export class AuthService {
 
     if (dto.TYPE === UserType.BARBER) {
       await this.barbersRepo.save(
-        this.barbersRepo.create({ SHOP_NAME: dto.SHOP_NAME ?? dto.NAME, USER: user }),
+        this.barbersRepo.create({
+          SHOP_NAME: dto.SHOP_NAME!,
+          CNPJ: dto.CNPJ!,
+          STREET: dto.STREET!,
+          NUMBER: dto.NUMBER!,
+          COMPLEMENT: dto.COMPLEMENT,
+          NEIGHBORHOOD: dto.NEIGHBORHOOD!,
+          CITY: dto.CITY!,
+          STATE: dto.STATE!,
+          ZIP_CODE: dto.ZIP_CODE!,
+          USER: user,
+        }),
       );
     }
 
@@ -87,10 +103,39 @@ export class AuthService {
   }
 
   async me(userId: string) {
-    return this.usersRepo.findOne({
+    const user = await this.usersRepo.findOne({
       where: { ID: userId },
       select: { ID: true, NAME: true, EMAIL: true, TYPE: true, CRIADO_EM: true },
     });
+
+    if (!user) return null;
+
+    const result: Record<string, unknown> = {
+      id: user.ID,
+      name: user.NAME,
+      email: user.EMAIL,
+      type: user.TYPE,
+    };
+
+    if (user.TYPE === UserType.BARBER) {
+      const barber = await this.barbersRepo.findOne({ where: { USER: { ID: userId } } });
+      if (barber) {
+        result.barber = {
+          id: barber.ID,
+          shop_name: barber.SHOP_NAME,
+          cnpj: barber.CNPJ,
+          street: barber.STREET,
+          number: barber.NUMBER,
+          complement: barber.COMPLEMENT ?? null,
+          neighborhood: barber.NEIGHBORHOOD,
+          city: barber.CITY,
+          state: barber.STATE,
+          zip_code: barber.ZIP_CODE,
+        };
+      }
+    }
+
+    return result;
   }
 
   async forgotPassword(email: string) {
