@@ -28,4 +28,7 @@ export class User extends BaseEntity {
 
   @Column({ nullable: true, type: 'timestamp' })
   PASSWORD_RESET_EXPIRES: Date | null;
+
+  @Column({ nullable: true, type: 'varchar' })
+  PUSH_TOKEN: string | null;
 }
