@@ -5,7 +5,8 @@ import { User } from '../../users/entities/user.entity';
 import { Service } from '../../services/entities/service.entity';
 
 export enum AppointmentStatus {
-  UPCOMING = 'UPCOMING',
+  PENDING = 'PENDING',
+  CONFIRMED = 'CONFIRMED',
   COMPLETED = 'COMPLETED',
   CANCELLED = 'CANCELLED',
 }
@@ -27,6 +28,6 @@ export class Appointment extends BaseEntity {
   @Column()
   TIME: string;
 
-  @Column({ type: 'enum', enum: AppointmentStatus, default: AppointmentStatus.UPCOMING })
+  @Column({ type: 'enum', enum: AppointmentStatus, default: AppointmentStatus.PENDING })
   APPOINTMENT_STATUS: AppointmentStatus;
 }

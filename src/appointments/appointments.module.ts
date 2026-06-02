@@ -5,10 +5,10 @@ import { AppointmentsService } from './appointments.service';
 import { Appointment } from './entities/appointment.entity';
 import { Barber } from '../barbers/entities/barber.entity';
 import { Service } from '../services/entities/service.entity';
-import { UsersModule } from '../users/users.module';
+import { User } from '../users/entities/user.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Appointment, Barber, Service]), UsersModule],
+  imports: [TypeOrmModule.forFeature([Appointment, Barber, Service, User])],
   controllers: [AppointmentsController],
   providers: [AppointmentsService],
 })
