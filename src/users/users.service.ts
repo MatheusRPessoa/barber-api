@@ -23,4 +23,14 @@ export class UsersService {
   updateName(id: string, name: string) {
     return this.repo.update(id, { NAME: name });
   }
+
+  savePushToken(id: string, token: string) {
+    return this.repo.update(id, { PUSH_TOKEN: token });
+  }
+
+  findPushTokenById(id: string): Promise<string | null | undefined> {
+    return this.repo
+      .findOne({ where: { ID: id }, select: { PUSH_TOKEN: true } })
+      .then((u) => u?.PUSH_TOKEN);
+  }
 }

@@ -1,4 +1,4 @@
-import { Controller, Get, Request, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Post, Request, UseGuards } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -7,6 +7,7 @@ import {
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { UsersService } from './users.service';
+import { SavePushTokenDto } from './dto/save-push-token.dto';
 import type { AuthenticatedRequest } from '../common/interfaces/authenticated-request.interface';
 
 @ApiTags('Usuários')
@@ -48,5 +49,21 @@ export class UsersController {
   })
   getMe(@Request() req: AuthenticatedRequest) {
     return this.usersService.findById(req.user.sub);
+  }
+
+  @Post('push-token')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Salvar push token',
+    description: 'Registra o token do dispositivo Expo para envio de notificações push',
+  })
+  @ApiResponse({ status: 200, description: 'Token salvo com sucesso' })
+  @ApiResponse({ status: 401, description: 'Token de sessão não encontrado ou sessão inválida/expirada' })
+  savePushToken(
+    @Request() req: AuthenticatedRequest,
+    @Body() dto: SavePushTokenDto,
+  ) {
+    return this.usersService.savePushToken(req.user.sub, dto.TOKEN);
   }
 }
