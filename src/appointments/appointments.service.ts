@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { Appointment, AppointmentStatus } from './entities/appointment.entity';
@@ -6,6 +10,15 @@ import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { User, UserType } from '../users/entities/user.entity';
 import { Barber } from '../barbers/entities/barber.entity';
 import { Service } from '../services/entities/service.entity';
+
+function mapService(s: Service) {
+  return {
+    id: s.ID,
+    name: s.NAME,
+    price: +s.PRICE,
+    duration_minutes: s.DURATION_MINUTES,
+  };
+}
 
 @Injectable()
 export class AppointmentsService {
@@ -35,12 +48,13 @@ export class AppointmentsService {
       .createQueryBuilder('a')
       .leftJoinAndSelect('a.BARBER', 'barber')
       .leftJoinAndSelect('a.CLIENT', 'client')
-      .leftJoinAndSelect('a.SERVICE', 'service')
+      .leftJoinAndSelect('a.SERVICES', 'services')
       .orderBy('a.TIME', 'ASC');
 
     if (barberId) qb.andWhere('barber.ID = :barberId', { barberId });
     if (filters.date) qb.andWhere('a.DATE = :date', { date: filters.date });
-    if (filters.status) qb.andWhere('a.APPOINTMENT_STATUS = :status', { status: filters.status });
+    if (filters.status)
+      qb.andWhere('a.APPOINTMENT_STATUS = :status', { status: filters.status });
 
     const appointments = await qb.getMany();
 
@@ -50,18 +64,23 @@ export class AppointmentsService {
       time: a.TIME,
       appointment_status: a.APPOINTMENT_STATUS,
       client: a.CLIENT
-        ? { id: a.CLIENT.ID, user: { id: a.CLIENT.ID, name: a.CLIENT.NAME, email: a.CLIENT.EMAIL } }
+        ? {
+            id: a.CLIENT.ID,
+            user: {
+              id: a.CLIENT.ID,
+              name: a.CLIENT.NAME,
+              email: a.CLIENT.EMAIL,
+            },
+          }
         : null,
-      service: a.SERVICE
-        ? { id: a.SERVICE.ID, name: a.SERVICE.NAME, price: a.SERVICE.PRICE, duration_minutes: a.SERVICE.DURATION_MINUTES }
-        : null,
+      services: a.SERVICES?.map(mapService) ?? [],
     }));
   }
 
   async findMine(clientUserId: string) {
     const appointments = await this.repo.find({
       where: { CLIENT: { ID: clientUserId } },
-      relations: { BARBER: true, SERVICE: true },
+      relations: { BARBER: true, SERVICES: true },
       order: { DATE: 'DESC', TIME: 'DESC' },
     });
 
@@ -74,54 +93,78 @@ export class AppointmentsService {
         id: a.BARBER.ID,
         shop_name: a.BARBER.SHOP_NAME,
       },
-      service: {
-        id: a.SERVICE.ID,
-        name: a.SERVICE.NAME,
-        price: +a.SERVICE.PRICE,
-        duration_minutes: a.SERVICE.DURATION_MINUTES,
-      },
+      services: a.SERVICES.map(mapService),
     }));
   }
 
   async findOne(id: string) {
     const appointment = await this.repo.findOne({
       where: { ID: id },
-      relations: { BARBER: { USER: true }, CLIENT: true, SERVICE: true },
+      relations: { BARBER: { USER: true }, CLIENT: true, SERVICES: true },
     });
     if (!appointment) throw new NotFoundException('Appointment not found');
-    return appointment;
+    return this.mapAppointment(appointment);
+  }
+
+  private mapAppointment(a: Appointment) {
+    return {
+      id: a.ID,
+      date: a.DATE,
+      time: a.TIME,
+      appointment_status: a.APPOINTMENT_STATUS,
+      barber: a.BARBER
+        ? { id: a.BARBER.ID, shop_name: a.BARBER.SHOP_NAME }
+        : null,
+      client: a.CLIENT
+        ? { id: a.CLIENT.ID, name: a.CLIENT.NAME, email: a.CLIENT.EMAIL }
+        : null,
+      services: a.SERVICES?.map(mapService) ?? [],
+    };
   }
 
   async create(dto: CreateAppointmentDto, clientUserId: string) {
     const today = new Date().toISOString().split('T')[0];
-    if (dto.DATE < today) throw new BadRequestException('Date cannot be in the past');
+    if (dto.DATE < today)
+      throw new BadRequestException('Date cannot be in the past');
 
-    const barber = await this.barbersRepo.findOne({ where: { ID: dto.BARBER_ID } });
+    const barber = await this.barbersRepo.findOne({
+      where: { ID: dto.BARBER_ID },
+    });
     if (!barber) throw new NotFoundException('Barber not found');
 
-    const client = await this.usersRepo.findOne({ where: { ID: clientUserId } });
+    const client = await this.usersRepo.findOne({
+      where: { ID: clientUserId },
+    });
     if (!client) throw new NotFoundException('Client not found');
 
-    const service = await this.servicesRepo.findOne({
-      where: { ID: dto.SERVICE_ID, BARBER: { ID: dto.BARBER_ID } },
+    const services = await this.servicesRepo.find({
+      where: { ID: In(dto.SERVICE_IDS), BARBER: { ID: dto.BARBER_ID } },
     });
-    if (!service) throw new NotFoundException('Service not found');
+    if (services.length !== dto.SERVICE_IDS.length) {
+      throw new NotFoundException(
+        'One or more services not found or do not belong to this barber',
+      );
+    }
 
     const conflict = await this.repo.findOne({
       where: {
         BARBER: { ID: dto.BARBER_ID },
         DATE: dto.DATE,
         TIME: dto.TIME,
-        APPOINTMENT_STATUS: In([AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED]),
+        APPOINTMENT_STATUS: In([
+          AppointmentStatus.PENDING,
+          AppointmentStatus.CONFIRMED,
+        ]),
       },
     });
-    if (conflict) throw new BadRequestException('This time slot is already booked');
+    if (conflict)
+      throw new BadRequestException('This time slot is already booked');
 
     const appointment = await this.repo.save(
       this.repo.create({
         BARBER: barber,
         CLIENT: client,
-        SERVICE: service,
+        SERVICES: services,
         DATE: dto.DATE,
         TIME: dto.TIME,
         APPOINTMENT_STATUS: AppointmentStatus.PENDING,
@@ -133,12 +176,7 @@ export class AppointmentsService {
       date: appointment.DATE,
       time: appointment.TIME,
       appointment_status: appointment.APPOINTMENT_STATUS,
-      service: {
-        id: service.ID,
-        name: service.NAME,
-        price: +service.PRICE,
-        duration_minutes: service.DURATION_MINUTES,
-      },
+      services: services.map(mapService),
       barber: {
         id: barber.ID,
         shop_name: barber.SHOP_NAME,
@@ -147,12 +185,23 @@ export class AppointmentsService {
   }
 
   async updateStatus(id: string, status: AppointmentStatus) {
-    const appointment = await this.findOne(id);
-    const current = appointment.APPOINTMENT_STATUS;
+    const entity = await this.repo.findOne({
+      where: { ID: id },
+      relations: { BARBER: true, CLIENT: true, SERVICES: true },
+    });
+    if (!entity) throw new NotFoundException('Appointment not found');
+
+    const current = entity.APPOINTMENT_STATUS;
 
     const allowed: Record<AppointmentStatus, AppointmentStatus[]> = {
-      [AppointmentStatus.PENDING]:   [AppointmentStatus.CONFIRMED, AppointmentStatus.CANCELLED],
-      [AppointmentStatus.CONFIRMED]: [AppointmentStatus.COMPLETED, AppointmentStatus.CANCELLED],
+      [AppointmentStatus.PENDING]: [
+        AppointmentStatus.CONFIRMED,
+        AppointmentStatus.CANCELLED,
+      ],
+      [AppointmentStatus.CONFIRMED]: [
+        AppointmentStatus.COMPLETED,
+        AppointmentStatus.CANCELLED,
+      ],
       [AppointmentStatus.COMPLETED]: [],
       [AppointmentStatus.CANCELLED]: [],
     };
@@ -163,7 +212,8 @@ export class AppointmentsService {
       );
     }
 
-    appointment.APPOINTMENT_STATUS = status;
-    return this.repo.save(appointment);
+    entity.APPOINTMENT_STATUS = status;
+    await this.repo.save(entity);
+    return this.mapAppointment(entity);
   }
 }

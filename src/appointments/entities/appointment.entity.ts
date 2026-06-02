@@ -1,4 +1,4 @@
-import { Column, Entity, ManyToOne } from 'typeorm';
+import { Column, Entity, JoinTable, ManyToMany, ManyToOne } from 'typeorm';
 import { BaseEntity } from '../../common/entities/base.entity';
 import { Barber } from '../../barbers/entities/barber.entity';
 import { User } from '../../users/entities/user.entity';
@@ -19,8 +19,9 @@ export class Appointment extends BaseEntity {
   @ManyToOne(() => User)
   CLIENT: User;
 
-  @ManyToOne(() => Service)
-  SERVICE: Service;
+  @ManyToMany(() => Service)
+  @JoinTable()
+  SERVICES: Service[];
 
   @Column()
   DATE: string;
@@ -28,6 +29,10 @@ export class Appointment extends BaseEntity {
   @Column()
   TIME: string;
 
-  @Column({ type: 'enum', enum: AppointmentStatus, default: AppointmentStatus.PENDING })
+  @Column({
+    type: 'enum',
+    enum: AppointmentStatus,
+    default: AppointmentStatus.PENDING,
+  })
   APPOINTMENT_STATUS: AppointmentStatus;
 }
