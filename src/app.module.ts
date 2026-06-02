@@ -27,7 +27,11 @@ import { Appointment } from './appointments/entities/appointment.entity';
               ? undefined
               : {
                   target: 'pino-pretty',
-                  options: { colorize: true, singleLine: true, translateTime: 'HH:MM:ss' },
+                  options: {
+                    colorize: true,
+                    singleLine: true,
+                    translateTime: 'HH:MM:ss',
+                  },
                 },
             serializers: {
               req: (req) => ({ id: req.id, method: req.method, url: req.url }),

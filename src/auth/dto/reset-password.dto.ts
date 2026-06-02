@@ -2,9 +2,9 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsString, IsUUID, MinLength } from 'class-validator';
 
 export class ResetPasswordDto {
-  @ApiProperty({ 
-    format: 'uuid', 
-    description: 'ID do usuário recebido na URL de reset' 
+  @ApiProperty({
+    format: 'uuid',
+    description: 'ID do usuário recebido na URL de reset',
   })
   @IsUUID()
   USER_ID: string;

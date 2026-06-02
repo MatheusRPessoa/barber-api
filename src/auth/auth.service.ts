@@ -1,4 +1,9 @@
-import { BadRequestException, ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
@@ -30,11 +35,15 @@ export class AuthService {
   }
 
   async register(dto: RegisterDto) {
-    const existing = await this.usersRepo.findOne({ where: { EMAIL: dto.EMAIL } });
+    const existing = await this.usersRepo.findOne({
+      where: { EMAIL: dto.EMAIL },
+    });
     if (existing) throw new ConflictException('Email already in use');
 
     if (dto.TYPE === UserType.BARBER) {
-      const existingCnpj = await this.barbersRepo.findOne({ where: { CNPJ: dto.CNPJ } });
+      const existingCnpj = await this.barbersRepo.findOne({
+        where: { CNPJ: dto.CNPJ },
+      });
       if (existingCnpj) throw new ConflictException('CNPJ already in use');
     }
 
@@ -63,8 +72,14 @@ export class AuthService {
       );
     }
 
-    const tokens = this.signTokens({ sub: user.ID, email: user.EMAIL, type: user.TYPE });
-    await this.usersRepo.update(user.ID, { REFRESH_TOKEN: await bcrypt.hash(tokens.refresh_token, 10) });
+    const tokens = this.signTokens({
+      sub: user.ID,
+      email: user.EMAIL,
+      type: user.TYPE,
+    });
+    await this.usersRepo.update(user.ID, {
+      REFRESH_TOKEN: await bcrypt.hash(tokens.refresh_token, 10),
+    });
 
     return tokens;
   }
@@ -75,12 +90,23 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const tokens = this.signTokens({ sub: user.ID, email: user.EMAIL, type: user.TYPE });
-    await this.usersRepo.update(user.ID, { REFRESH_TOKEN: await bcrypt.hash(tokens.refresh_token, 10) });
+    const tokens = this.signTokens({
+      sub: user.ID,
+      email: user.EMAIL,
+      type: user.TYPE,
+    });
+    await this.usersRepo.update(user.ID, {
+      REFRESH_TOKEN: await bcrypt.hash(tokens.refresh_token, 10),
+    });
 
     return {
       ...tokens,
-      user: { id: user.ID, name: user.NAME, email: user.EMAIL, type: user.TYPE },
+      user: {
+        id: user.ID,
+        name: user.NAME,
+        email: user.EMAIL,
+        type: user.TYPE,
+      },
     };
   }
 
@@ -91,8 +117,14 @@ export class AuthService {
     const valid = await bcrypt.compare(refreshToken, user.REFRESH_TOKEN);
     if (!valid) throw new UnauthorizedException('Access denied');
 
-    const tokens = this.signTokens({ sub: user.ID, email: user.EMAIL, type: user.TYPE });
-    await this.usersRepo.update(user.ID, { REFRESH_TOKEN: await bcrypt.hash(tokens.refresh_token, 10) });
+    const tokens = this.signTokens({
+      sub: user.ID,
+      email: user.EMAIL,
+      type: user.TYPE,
+    });
+    await this.usersRepo.update(user.ID, {
+      REFRESH_TOKEN: await bcrypt.hash(tokens.refresh_token, 10),
+    });
 
     return tokens;
   }
@@ -105,7 +137,13 @@ export class AuthService {
   async me(userId: string) {
     const user = await this.usersRepo.findOne({
       where: { ID: userId },
-      select: { ID: true, NAME: true, EMAIL: true, TYPE: true, CRIADO_EM: true },
+      select: {
+        ID: true,
+        NAME: true,
+        EMAIL: true,
+        TYPE: true,
+        CRIADO_EM: true,
+      },
     });
 
     if (!user) return null;
@@ -118,7 +156,9 @@ export class AuthService {
     };
 
     if (user.TYPE === UserType.BARBER) {
-      const barber = await this.barbersRepo.findOne({ where: { USER: { ID: userId } } });
+      const barber = await this.barbersRepo.findOne({
+        where: { USER: { ID: userId } },
+      });
       if (barber) {
         result.barber = {
           id: barber.ID,
@@ -155,7 +195,11 @@ export class AuthService {
     console.log(`[ForgotPassword] Reset URL: ${resetUrl}`);
   }
 
-  async resetPassword(dto: { USER_ID: string; TOKEN: string; NEW_PASSWORD: string }) {
+  async resetPassword(dto: {
+    USER_ID: string;
+    TOKEN: string;
+    NEW_PASSWORD: string;
+  }) {
     const user = await this.usersRepo.findOne({ where: { ID: dto.USER_ID } });
 
     if (!user?.PASSWORD_RESET_TOKEN || !user.PASSWORD_RESET_EXPIRES) {

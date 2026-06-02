@@ -1,49 +1,58 @@
-import { IsEmail, IsEnum, IsNotEmpty, IsString, Matches, MinLength, ValidateIf } from 'class-validator';
+import {
+  IsEmail,
+  IsEnum,
+  IsNotEmpty,
+  IsString,
+  Matches,
+  MinLength,
+  ValidateIf,
+} from 'class-validator';
 import { UserType } from '../../users/entities/user.entity';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class RegisterDto {
-  @ApiProperty({ 
-    example: 'João Silva' 
+  @ApiProperty({
+    example: 'João Silva',
   })
   @IsString()
   NAME: string;
 
-  @ApiProperty({ 
-    format: 'email', 
-    example: 'joao@email.com' 
+  @ApiProperty({
+    format: 'email',
+    example: 'joao@email.com',
   })
   @IsEmail()
   EMAIL: string;
 
-  @ApiProperty({ 
-    minLength: 6, 
-    example: 'senha123' 
+  @ApiProperty({
+    minLength: 6,
+    example: 'senha123',
   })
   @IsString()
   @MinLength(6)
   PASSWORD: string;
 
-  @ApiProperty({ 
-    enum: UserType, 
-    enumName: 'UserType', 
-    example: UserType.CLIENT 
+  @ApiProperty({
+    enum: UserType,
+    enumName: 'UserType',
+    example: UserType.CLIENT,
   })
   @IsEnum(UserType)
   TYPE: UserType;
 
-  @ApiPropertyOptional({ 
-    example: 'Barbearia do João', 
-    description: 'Obrigatório para TYPE=BARBER' 
+  @ApiPropertyOptional({
+    example: 'Barbearia do João',
+    description: 'Obrigatório para TYPE=BARBER',
   })
   @ValidateIf((o) => o.TYPE === UserType.BARBER)
   @IsString()
   @IsNotEmpty({ message: 'SHOP_NAME is required for barbers' })
   SHOP_NAME?: string;
-  
-  @ApiPropertyOptional({ 
-    example: '12.345.678/0001-90', 
-    description: 'Formato XX.XXX.XXX/XXXX-XX ou 14 dígitos. Obrigatório para TYPE=BARBER' 
+
+  @ApiPropertyOptional({
+    example: '12.345.678/0001-90',
+    description:
+      'Formato XX.XXX.XXX/XXXX-XX ou 14 dígitos. Obrigatório para TYPE=BARBER',
   })
   @ValidateIf((o) => o.TYPE === UserType.BARBER)
   @IsString()
@@ -86,10 +95,15 @@ export class RegisterDto {
   @ValidateIf((o) => o.TYPE === UserType.BARBER)
   @IsString()
   @IsNotEmpty()
-  @Matches(/^[A-Z]{2}$/, { message: 'STATE must be a 2-letter uppercase code (e.g. SP)' })
+  @Matches(/^[A-Z]{2}$/, {
+    message: 'STATE must be a 2-letter uppercase code (e.g. SP)',
+  })
   STATE?: string;
 
-  @ApiPropertyOptional({ example: '01310-100', description: 'Formato 00000-000' })
+  @ApiPropertyOptional({
+    example: '01310-100',
+    description: 'Formato 00000-000',
+  })
   @ValidateIf((o) => o.TYPE === UserType.BARBER)
   @IsString()
   @IsNotEmpty()

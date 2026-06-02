@@ -12,7 +12,9 @@ async function bootstrap() {
   app.setGlobalPrefix('api');
 
   app.enableCors({
-    origin: process.env.ALLOWED_ORIGINS?.split(',') ?? ['http://localhost:3000'],
+    origin: process.env.ALLOWED_ORIGINS?.split(',') ?? [
+      'http://localhost:3000',
+    ],
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
     credentials: true,
   });
@@ -24,16 +26,24 @@ async function bootstrap() {
     .setTitle('BarberApp API')
     .setDescription('API para o app mobile BarberApp')
     .setVersion('1.0')
-    .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }, 'JWT-auth')
+    .addBearerAuth(
+      { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
+      'JWT-auth',
+    )
     .build();
 
-  SwaggerModule.setup('docs', app, SwaggerModule.createDocument(app, swaggerConfig), {
-    customCss: `
+  SwaggerModule.setup(
+    'docs',
+    app,
+    SwaggerModule.createDocument(app, swaggerConfig),
+    {
+      customCss: `
       body { background-color: #1a1a2e; color: #eee; }
       .swagger-ui .topbar { background-color: #16213e; }
       .swagger-ui .info .title { color: #eee; }
     `,
-  });
+    },
+  );
 
   await app.listen(process.env.PORT ?? 3001);
 }

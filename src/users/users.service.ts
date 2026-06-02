@@ -10,7 +10,13 @@ export class UsersService {
   findById(id: string) {
     return this.repo.findOne({
       where: { ID: id },
-      select: { ID: true, NAME: true, EMAIL: true, TYPE: true, CRIADO_EM: true },
+      select: {
+        ID: true,
+        NAME: true,
+        EMAIL: true,
+        TYPE: true,
+        CRIADO_EM: true,
+      },
     });
   }
 

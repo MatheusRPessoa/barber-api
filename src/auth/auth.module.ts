@@ -27,7 +27,22 @@ import { Barber } from '../barbers/entities/barber.entity';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, JwtRefreshStrategy, JwtAuthGuard, JwtRefreshGuard, RolesGuard],
-  exports: [JwtModule, PassportModule, JwtAuthGuard, JwtRefreshGuard, RolesGuard, JwtStrategy, JwtRefreshStrategy],
+  providers: [
+    AuthService,
+    JwtStrategy,
+    JwtRefreshStrategy,
+    JwtAuthGuard,
+    JwtRefreshGuard,
+    RolesGuard,
+  ],
+  exports: [
+    JwtModule,
+    PassportModule,
+    JwtAuthGuard,
+    JwtRefreshGuard,
+    RolesGuard,
+    JwtStrategy,
+    JwtRefreshStrategy,
+  ],
 })
 export class AuthModule {}

@@ -1,5 +1,17 @@
-import { Body, Controller, Get, Post, Request, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  Request,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { JwtRefreshGuard } from './jwt-refresh.guard';
@@ -16,34 +28,34 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('register')
-  @ApiOperation({ 
-    summary: 'Registrar usuário', 
-    description: 'Cria um novo usuário (cliente ou barbeiro)' 
+  @ApiOperation({
+    summary: 'Registrar usuário',
+    description: 'Cria um novo usuário (cliente ou barbeiro)',
   })
-  @ApiResponse({ 
-    status: 201, 
-    description: 'Usuário registrado com sucesso' 
+  @ApiResponse({
+    status: 201,
+    description: 'Usuário registrado com sucesso',
   })
-  @ApiResponse({ 
-    status: 400, 
-    description: 'Dados inválidos' 
+  @ApiResponse({
+    status: 400,
+    description: 'Dados inválidos',
   })
-  @ApiResponse({ 
+  @ApiResponse({
     status: 409,
-    description: 'E-mail ou CNPJ já cadastrado' 
+    description: 'E-mail ou CNPJ já cadastrado',
   })
   register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
   }
 
   @Post('login')
-  @ApiOperation({ 
-    summary: 'Realizar login', 
-    description: 'Autentica o usuário e retorna tokens JWT' 
+  @ApiOperation({
+    summary: 'Realizar login',
+    description: 'Autentica o usuário e retorna tokens JWT',
   })
-  @ApiResponse({ 
-    status: 201, 
-    description: 'Login efetuado com sucesso' 
+  @ApiResponse({
+    status: 201,
+    description: 'Login efetuado com sucesso',
   })
   @ApiResponse({ status: 401, description: 'Credenciais inválidas' })
   login(@Body() dto: LoginDto) {
@@ -53,29 +65,29 @@ export class AuthController {
   @Post('refresh')
   @UseGuards(JwtRefreshGuard)
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ 
-    summary: 'Renovar tokens' 
+  @ApiOperation({
+    summary: 'Renovar tokens',
   })
-  @ApiResponse({ 
-    status: 201, 
-    description: 'Tokens renovados com sucesso' 
+  @ApiResponse({
+    status: 201,
+    description: 'Tokens renovados com sucesso',
   })
-  @ApiResponse({ 
-    status: 401, 
-    description: 'Token de sessão não encontrado ou sessão inválida/expirada' 
+  @ApiResponse({
+    status: 401,
+    description: 'Token de sessão não encontrado ou sessão inválida/expirada',
   })
   refresh(@Request() req: AuthenticatedRequest) {
     return this.authService.refresh(req.user.sub, req.user.refreshToken!);
   }
 
   @Post('logout')
-  @ApiOperation({ 
-    summary: 'Realizar logout', 
-    description: 'Invalida o refresh token e encerra a sessão' 
+  @ApiOperation({
+    summary: 'Realizar logout',
+    description: 'Invalida o refresh token e encerra a sessão',
   })
-  @ApiResponse({ 
-    status: 201, 
-    description: 'Logout realizado com sucesso' 
+  @ApiResponse({
+    status: 201,
+    description: 'Logout realizado com sucesso',
   })
   logout(@Body() dto: LogoutDto) {
     return this.authService.logout(dto.id);
@@ -84,51 +96,51 @@ export class AuthController {
   @Get('me')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ 
-    summary: 'Obter dados do usuário autenticado' 
+  @ApiOperation({
+    summary: 'Obter dados do usuário autenticado',
   })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'Dados retornados com sucesso' 
+  @ApiResponse({
+    status: 200,
+    description: 'Dados retornados com sucesso',
   })
-  @ApiResponse({ 
-    status: 401, 
-    description: 'Token de sessão não encontrado ou sessão inválida/expirada' 
+  @ApiResponse({
+    status: 401,
+    description: 'Token de sessão não encontrado ou sessão inválida/expirada',
   })
   me(@Request() req: AuthenticatedRequest) {
     return this.authService.me(req.user.sub);
   }
 
   @Post('forgot-password')
-  @ApiOperation({ 
-    summary: 'Solicitar recuperação de senha', 
-    description: 'Envia e-mail com instruções para resetar a senha' 
+  @ApiOperation({
+    summary: 'Solicitar recuperação de senha',
+    description: 'Envia e-mail com instruções para resetar a senha',
   })
   @ApiResponse({
-     status: 201, 
-     description: 'E-mail de recuperação enviado (se o usuário existir)' 
-    })
-  @ApiResponse({ 
-    status: 400, 
-    description: 'E-mail inválido' 
+    status: 201,
+    description: 'E-mail de recuperação enviado (se o usuário existir)',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'E-mail inválido',
   })
   forgotPassword(@Body() dto: ForgotPasswordDto) {
     return this.authService.forgotPassword(dto.EMAIL);
   }
 
   @Post('reset-password')
-  @ApiOperation({ 
-    summary: 'Resetar senha', 
-    description: 'Reseta a senha usando token de recuperação' 
-  })
-  @ApiResponse({ 
-    status: 201, 
-    description: 'Senha resetada com sucesso'
+  @ApiOperation({
+    summary: 'Resetar senha',
+    description: 'Reseta a senha usando token de recuperação',
   })
   @ApiResponse({
-     status: 400, 
-     description: 'Token de reset inválido ou expirado' 
-    })
+    status: 201,
+    description: 'Senha resetada com sucesso',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Token de reset inválido ou expirado',
+  })
   resetPassword(@Body() dto: ResetPasswordDto) {
     return this.authService.resetPassword(dto);
   }

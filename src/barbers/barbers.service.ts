@@ -2,7 +2,10 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { Barber } from './entities/barber.entity';
-import { Appointment, AppointmentStatus } from '../appointments/entities/appointment.entity';
+import {
+  Appointment,
+  AppointmentStatus,
+} from '../appointments/entities/appointment.entity';
 import { UsersService } from '../users/users.service';
 import { UpdateBarberDto } from './dto/update-barber.dto';
 import { Service } from '../services/entities/service.entity';
@@ -18,11 +21,15 @@ function mapService(s: Service) {
 
 function generateSlots(): string[] {
   const slots: string[] = [];
-  let h = 9, m = 0;
+  let h = 9,
+    m = 0;
   while (h < 19) {
     slots.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
     m += 30;
-    if (m >= 60) { h++; m -= 60; }
+    if (m >= 60) {
+      h++;
+      m -= 60;
+    }
   }
   return slots;
 }
@@ -31,12 +38,16 @@ function generateSlots(): string[] {
 export class BarbersService {
   constructor(
     @InjectRepository(Barber) private repo: Repository<Barber>,
-    @InjectRepository(Appointment) private appointmentsRepo: Repository<Appointment>,
+    @InjectRepository(Appointment)
+    private appointmentsRepo: Repository<Appointment>,
     private usersService: UsersService,
   ) {}
 
   findByUserId(userId: string) {
-    return this.repo.findOne({ where: { USER: { ID: userId } }, relations: { USER: true } });
+    return this.repo.findOne({
+      where: { USER: { ID: userId } },
+      relations: { USER: true },
+    });
   }
 
   async findAll() {
@@ -85,7 +96,10 @@ export class BarbersService {
       where: {
         BARBER: { ID: barberId },
         DATE: date,
-        APPOINTMENT_STATUS: In([AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED]),
+        APPOINTMENT_STATUS: In([
+          AppointmentStatus.PENDING,
+          AppointmentStatus.CONFIRMED,
+        ]),
       },
       select: { TIME: true },
     });
@@ -105,8 +119,12 @@ export class BarbersService {
     }
 
     if (Object.keys(barberFields).length > 0) {
-      const result = await this.repo.update({ USER: { ID: userId } }, barberFields);
-      if (result.affected === 0) throw new NotFoundException('Barber profile not found');
+      const result = await this.repo.update(
+        { USER: { ID: userId } },
+        barberFields,
+      );
+      if (result.affected === 0)
+        throw new NotFoundException('Barber profile not found');
     }
 
     const barber = await this.repo.findOne({ where: { USER: { ID: userId } } });

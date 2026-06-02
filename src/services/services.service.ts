@@ -20,12 +20,16 @@ export class ServicesService {
   constructor(@InjectRepository(Service) private repo: Repository<Service>) {}
 
   async findByBarber(barberId: string) {
-    const services = await this.repo.find({ where: { BARBER: { ID: barberId } } });
+    const services = await this.repo.find({
+      where: { BARBER: { ID: barberId } },
+    });
     return services.map(mapService);
   }
 
   async findByBarberUserId(userId: string) {
-    const services = await this.repo.find({ where: { BARBER: { USER: { ID: userId } } } });
+    const services = await this.repo.find({
+      where: { BARBER: { USER: { ID: userId } } },
+    });
     return services.map(mapService);
   }
 
@@ -40,15 +44,21 @@ export class ServicesService {
   }
 
   async update(id: string, barberId: string, dto: UpdateServiceDto) {
-    const service = await this.repo.findOne({ where: { ID: id, BARBER: { ID: barberId } } });
-    if (!service) throw new ForbiddenException('Service not found or access denied');
+    const service = await this.repo.findOne({
+      where: { ID: id, BARBER: { ID: barberId } },
+    });
+    if (!service)
+      throw new ForbiddenException('Service not found or access denied');
     Object.assign(service, dto);
     return mapService(await this.repo.save(service));
   }
 
   async remove(id: string, barberId: string) {
-    const service = await this.repo.findOne({ where: { ID: id, BARBER: { ID: barberId } } });
-    if (!service) throw new ForbiddenException('Service not found or access denied');
+    const service = await this.repo.findOne({
+      where: { ID: id, BARBER: { ID: barberId } },
+    });
+    if (!service)
+      throw new ForbiddenException('Service not found or access denied');
     await this.repo.remove(service);
   }
 }

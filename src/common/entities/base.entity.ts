@@ -11,7 +11,11 @@ export abstract class BaseEntity {
   @CreateDateColumn()
   CRIADO_EM: Date;
 
-  @Column({ type: 'enum', enum: BaseEntityStatusEnum, default: BaseEntityStatusEnum.ATIVO })
+  @Column({
+    type: 'enum',
+    enum: BaseEntityStatusEnum,
+    default: BaseEntityStatusEnum.ATIVO,
+  })
   STATUS: BaseEntityStatusEnum;
 
   @Column({ nullable: true, type: 'varchar' })

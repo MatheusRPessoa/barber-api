@@ -43,25 +43,25 @@ export class UpdateBarberDto {
   @IsNotEmpty()
   CITY?: string;
 
-  @ApiPropertyOptional({ 
-    example: 'SP', 
-    description: '2 letras maiúsculas' 
+  @ApiPropertyOptional({
+    example: 'SP',
+    description: '2 letras maiúsculas',
   })
   @IsOptional()
   @IsString()
-  @Matches(/^[A-Z]{2}$/, { 
-    message: 'STATE must be a 2-letter uppercase code (e.g. SP)' 
+  @Matches(/^[A-Z]{2}$/, {
+    message: 'STATE must be a 2-letter uppercase code (e.g. SP)',
   })
   STATE?: string;
 
-  @ApiPropertyOptional({ 
-    example: '01310-100', 
-    description: 'Formato 00000-000' 
+  @ApiPropertyOptional({
+    example: '01310-100',
+    description: 'Formato 00000-000',
   })
   @IsOptional()
   @IsString()
-  @Matches(/^\d{5}-\d{3}$/, { 
-    message: 'ZIP_CODE must be in format 00000-000' 
+  @Matches(/^\d{5}-\d{3}$/, {
+    message: 'ZIP_CODE must be in format 00000-000',
   })
   ZIP_CODE?: string;
 }
