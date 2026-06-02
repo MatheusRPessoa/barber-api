@@ -10,6 +10,7 @@ import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { User, UserType } from '../users/entities/user.entity';
 import { Barber } from '../barbers/entities/barber.entity';
 import { Service } from '../services/entities/service.entity';
+import { NotificationsService } from '../notifications/notifications.service';
 
 function mapService(s: Service) {
   return {
@@ -27,6 +28,7 @@ export class AppointmentsService {
     @InjectRepository(Barber) private barbersRepo: Repository<Barber>,
     @InjectRepository(Service) private servicesRepo: Repository<Service>,
     @InjectRepository(User) private usersRepo: Repository<User>,
+    private notifications: NotificationsService,
   ) {}
 
   async findAll(filters: {
@@ -129,6 +131,7 @@ export class AppointmentsService {
 
     const barber = await this.barbersRepo.findOne({
       where: { ID: dto.BARBER_ID },
+      relations: { USER: true },
     });
     if (!barber) throw new NotFoundException('Barber not found');
 
@@ -169,6 +172,13 @@ export class AppointmentsService {
         TIME: dto.TIME,
         APPOINTMENT_STATUS: AppointmentStatus.PENDING,
       }),
+    );
+
+    void this.notifications.send(
+      barber.USER?.PUSH_TOKEN,
+      'BarberApp',
+      `Novo agendamento para ${dto.DATE} às ${dto.TIME}`,
+      { appointmentId: appointment.ID },
     );
 
     return {
@@ -214,6 +224,20 @@ export class AppointmentsService {
 
     entity.APPOINTMENT_STATUS = status;
     await this.repo.save(entity);
+
+    if (status === AppointmentStatus.CONFIRMED || status === AppointmentStatus.CANCELLED) {
+      const message =
+        status === AppointmentStatus.CONFIRMED
+          ? 'Seu agendamento foi confirmado!'
+          : 'Seu agendamento foi cancelado.';
+      void this.notifications.send(
+        entity.CLIENT?.PUSH_TOKEN,
+        'BarberApp',
+        message,
+        { appointmentId: entity.ID },
+      );
+    }
+
     return this.mapAppointment(entity);
   }
 }
