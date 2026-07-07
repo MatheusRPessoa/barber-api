@@ -11,6 +11,10 @@ import { User } from './users/entities/user.entity';
 import { Barber } from './barbers/entities/barber.entity';
 import { Service } from './services/entities/service.entity';
 import { Appointment } from './appointments/entities/appointment.entity';
+import { Client } from './clients/entities/client.entity';
+import { ClientsModule } from './clients/clients.module';
+import { Coupon } from './coupons/entities/coupon.entity';
+import { CouponsModule } from './coupons/coupons.module';
 
 @Module({
   imports: [
@@ -53,15 +57,17 @@ import { Appointment } from './appointments/entities/appointment.entity';
         username: config.get<string>('DB_USER'),
         password: config.get<string>('DB_PASS'),
         database: config.get<string>('DB_NAME'),
-        entities: [User, Barber, Service, Appointment],
+        entities: [User, Barber, Client, Service, Appointment, Coupon],
         synchronize: true,
       }),
     }),
     AuthModule,
     UsersModule,
+    ClientsModule,
     BarbersModule,
     ServicesModule,
     AppointmentsModule,
+    CouponsModule,
   ],
 })
 export class AppModule {}
