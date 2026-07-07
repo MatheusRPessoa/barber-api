@@ -15,12 +15,14 @@ import { Barber } from '../barbers/entities/barber.entity';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { JwtPayload } from './types/jwt-payload.type';
+import { Client } from '../clients/entities/client.entity';
 
 @Injectable()
 export class AuthService {
   constructor(
     @InjectRepository(User) private usersRepo: Repository<User>,
     @InjectRepository(Barber) private barbersRepo: Repository<Barber>,
+    @InjectRepository(Client) private clientsRepo: Repository<Client>,
     private jwtService: JwtService,
     private config: ConfigService,
   ) {}
@@ -40,6 +42,13 @@ export class AuthService {
     });
     if (existing) throw new ConflictException('Email already in use');
 
+    if (dto.TYPE === UserType.CLIENT) {
+      const existingCpf = await this.clientsRepo.findOne({
+        where: { CPF: dto.CPF },
+      })
+      if (existingCpf) throw new ConflictException('CPF already in use');
+    }
+
     if (dto.TYPE === UserType.BARBER) {
       const existingCnpj = await this.barbersRepo.findOne({
         where: { CNPJ: dto.CNPJ },
@@ -55,6 +64,22 @@ export class AuthService {
     });
     await this.usersRepo.save(user);
 
+    if (dto.TYPE === UserType.CLIENT) {
+      await this.clientsRepo.save(
+        this.clientsRepo.create({
+          CPF: dto.CPF!,
+          STREET: dto.STREET!,
+          NUMBER: dto.NUMBER!,
+          COMPLEMENT: dto.COMPLEMENT,
+          NEIGHBORHOOD: dto.NEIGHBORHOOD!,
+          CITY: dto.CITY!,
+          STATE: dto.STATE!,
+          ZIP_CODE: dto.ZIP_CODE!,
+          USER: user,
+        }),
+      );
+    }
+
     if (dto.TYPE === UserType.BARBER) {
       await this.barbersRepo.save(
         this.barbersRepo.create({
@@ -67,6 +92,8 @@ export class AuthService {
           CITY: dto.CITY!,
           STATE: dto.STATE!,
           ZIP_CODE: dto.ZIP_CODE!,
+          LATITUDE: dto.LATITUDE ?? null,
+          LONGITUDE: dto.LONGITUDE ?? null,
           USER: user,
         }),
       );

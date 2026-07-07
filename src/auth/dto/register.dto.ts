@@ -2,8 +2,12 @@ import {
   IsEmail,
   IsEnum,
   IsNotEmpty,
+  IsNumber,
+  IsOptional,
   IsString,
   Matches,
+  Max,
+  Min,
   MinLength,
   ValidateIf,
 } from 'class-validator';
@@ -62,37 +66,45 @@ export class RegisterDto {
   })
   CNPJ?: string;
 
+  @ApiPropertyOptional({
+    example: '123.456.789-09',
+    description:
+      'Formato XXX.XXX.XXX-XX ou 11 dígitos. Obrigatório para TYPE=CLIENT',
+  })
+  @ValidateIf((o) => o.TYPE === UserType.CLIENT)
+  @IsString()
+  @IsNotEmpty({ message: 'CPF is required for clients' })
+  @Matches(/^\d{3}\.\d{3}\.\d{3}-\d{2}$|^\d{11}$/, {
+    message: 'CPF must be in format XXX.XXX.XXX-XX or 11 digits',
+  })
+  CPF?: string;
+
   @ApiPropertyOptional({ example: 'Rua das Flores' })
-  @ValidateIf((o) => o.TYPE === UserType.BARBER)
   @IsString()
   @IsNotEmpty()
   STREET?: string;
 
   @ApiPropertyOptional({ example: '123' })
-  @ValidateIf((o) => o.TYPE === UserType.BARBER)
   @IsString()
   @IsNotEmpty()
   NUMBER?: string;
 
   @ApiPropertyOptional({ example: 'Sala 2' })
-  @ValidateIf((o) => o.TYPE === UserType.BARBER)
   @IsString()
+  @IsOptional()
   COMPLEMENT?: string;
 
   @ApiPropertyOptional({ example: 'Centro' })
-  @ValidateIf((o) => o.TYPE === UserType.BARBER)
   @IsString()
   @IsNotEmpty()
   NEIGHBORHOOD?: string;
 
   @ApiPropertyOptional({ example: 'São Paulo' })
-  @ValidateIf((o) => o.TYPE === UserType.BARBER)
   @IsString()
   @IsNotEmpty()
   CITY?: string;
 
   @ApiPropertyOptional({ example: 'SP', description: '2 letras maiúsculas' })
-  @ValidateIf((o) => o.TYPE === UserType.BARBER)
   @IsString()
   @IsNotEmpty()
   @Matches(/^[A-Z]{2}$/, {
@@ -104,9 +116,22 @@ export class RegisterDto {
     example: '01310-100',
     description: 'Formato 00000-000',
   })
-  @ValidateIf((o) => o.TYPE === UserType.BARBER)
   @IsString()
   @IsNotEmpty()
   @Matches(/^\d{5}-\d{3}$/, { message: 'ZIP_CODE must be in format 00000-000' })
   ZIP_CODE?: string;
+
+  @ApiPropertyOptional({ example: -23.55 })
+  @IsOptional()
+  @IsNumber()
+  @Min(-90)
+  @Max(90)
+  LATITUDE?: number;
+
+  @ApiPropertyOptional({ example: -46.63 })
+  @IsOptional()
+  @IsNumber()
+  @Min(-180)
+  @Max(180)
+  LONGITUDE?: number;
 }

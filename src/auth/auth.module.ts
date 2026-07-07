@@ -12,11 +12,13 @@ import { JwtRefreshGuard } from './jwt-refresh.guard';
 import { RolesGuard } from './roles.guard';
 import { User } from '../users/entities/user.entity';
 import { Barber } from '../barbers/entities/barber.entity';
+import { Client } from '../clients/entities/client.entity';
+import { OptionalJwtAuthGuard } from './optional-jwt-auth.guard';
 
 @Module({
   imports: [
     PassportModule.register({ defaultStrategy: 'jwt' }),
-    TypeOrmModule.forFeature([User, Barber]),
+    TypeOrmModule.forFeature([User, Barber, Client]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -34,6 +36,7 @@ import { Barber } from '../barbers/entities/barber.entity';
     JwtAuthGuard,
     JwtRefreshGuard,
     RolesGuard,
+    OptionalJwtAuthGuard,
   ],
   exports: [
     JwtModule,
@@ -43,6 +46,7 @@ import { Barber } from '../barbers/entities/barber.entity';
     RolesGuard,
     JwtStrategy,
     JwtRefreshStrategy,
+    OptionalJwtAuthGuard,
   ],
 })
 export class AuthModule {}
