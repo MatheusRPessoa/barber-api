@@ -19,14 +19,56 @@ import {
 import { BarbersService } from './barbers.service';
 import { UpdateBarberDto } from './dto/update-barber.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
 import type { AuthenticatedRequest } from '../common/interfaces/authenticated-request.interface';
+import { ClientsService } from '../clients/clients.service';
+import { ListBarbersQueryDto } from './dto/list-barbers-query.dto';
+import { UserType } from '../users/entities/user.entity';
 
 @ApiTags('Barbearias')
 @Controller('barbers')
 export class BarbersController {
-  constructor(private readonly barbersService: BarbersService) {}
+  constructor(
+    private readonly barbersService: BarbersService,
+    private readonly clientsService: ClientsService,
+  ) {}
+
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({
+    summary: 'Obter perfil do barbeiro autenticado',
+    description:
+      'Retorna os dados cadastrais da barbearia do barbeiro autenticado, junto com nome e e-mail',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Perfil retornado com sucesso',
+    schema: {
+      example: {
+        id: 'a3bb189e-8bf9-3888-9912-ace4e6543002',
+        shop_name: 'Barbearia do João',
+        cnpj: '12.345.678/0001-90',
+        rating: 4.8,
+        street: 'Rua das Flores',
+        number: '123',
+        complement: null,
+        neighborhood: 'Centro',
+        city: 'São Paulo',
+        state: 'SP',
+        zip_code: '01310-100',
+        name: 'João Silva',
+        email: 'joao@email.com',
+      },
+    },
+  })
+  @ApiResponse({ status: 404, description: 'Perfil de barbeiro não encontrado' })
+  getMe(@Request() req: AuthenticatedRequest) {
+    return this.barbersService.getMe(req.user.sub);
+  }
 
   @Get()
+  @UseGuards(OptionalJwtAuthGuard)
   @ApiOperation({
     summary: 'Listar barbearias',
     description:
@@ -62,8 +104,21 @@ export class BarbersController {
       ],
     },
   })
-  findAll() {
-    return this.barbersService.findAll();
+  async findAll(
+    @Query() query: ListBarbersQueryDto,
+    @Request() req: { user?: { sub: string; type: UserType } },
+  ) {
+    const favoriteIds =
+      req.user?.type === UserType.CLIENT
+        ? await this.clientsService.getFavoriteIds(req.user.sub)
+        : undefined;
+
+    return this.barbersService.findAll({
+      lat: query.lat,
+      lng: query.lng,
+      sort: query.sort,
+      favoriteIds,
+    });
   }
 
   @Get(':id/services')

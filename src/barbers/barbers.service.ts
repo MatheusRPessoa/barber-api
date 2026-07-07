@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { haversineKm } from '../common/utils/geo';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { Barber } from './entities/barber.entity';
@@ -34,6 +35,33 @@ function generateSlots(): string[] {
   return slots;
 }
 
+export function mapBarberListItem(b: Barber) {
+  return {
+    id: b.ID,
+    shop_name: b.SHOP_NAME,
+    rating: b.RATING,
+    street: b.STREET,
+    number: b.NUMBER,
+    city: b.CITY,
+    state: b.STATE,
+    services: b.SERVICES.map(mapService),
+  };
+}
+
+export function withDistance(
+  item: Record<string, unknown>,
+  b: Barber,
+  lat?: number,
+  lng?: number,
+) {
+  if (lat === undefined || lng === undefined) return item;
+  item.distance_km =
+    b.LATITUDE != null && b.LONGITUDE != null
+      ? +haversineKm(lat, lng, b.LATITUDE, b.LONGITUDE).toFixed(1)
+      : null;
+  return item;
+}
+
 @Injectable()
 export class BarbersService {
   constructor(
@@ -50,21 +78,62 @@ export class BarbersService {
     });
   }
 
-  async findAll() {
+  async getMe(userId: string) {
+    const barber = await this.findByUserId(userId);
+    if (!barber) throw new NotFoundException('Barber profile not found');
+
+      return {
+        id: barber.ID,
+        shop_name: barber.SHOP_NAME,
+        cnpj: barber.CNPJ,
+        rating: barber.RATING,
+        street: barber.STREET,
+        number: barber.NUMBER,
+        complement: barber.COMPLEMENT ?? null,
+        neighborhood: barber.NEIGHBORHOOD,
+        city: barber.CITY,
+        state: barber.STATE,
+        zip_code: barber.ZIP_CODE,
+        name: barber.USER.NAME,
+        email: barber.USER.EMAIL,
+        latitude: barber.LATITUDE,
+        longitude: barber.LONGITUDE,
+      };
+    }
+
+  async findAll(opts: {
+    lat?: number;
+    lng?: number;
+    sort?: 'distance';
+    favoriteIds?: Set<string>;
+  } = {}) {
     const barbers = await this.repo.find({
       relations: { SERVICES: true },
-      order: { RATING: 'DESC' },
+      order: { RATING: { direction: 'DESC', nulls: 'LAST' } },
     });
 
-    return barbers.map((b) => ({
-      id: b.ID,
-      shop_name: b.SHOP_NAME,
-      rating: b.RATING,
-      street: b.STREET,
-      city: b.CITY,
-      state: b.STATE,
-      services: b.SERVICES.map(mapService),
-    }));
+    const items = barbers.map((b) => {
+      const item: Record<string, unknown> = withDistance(
+        mapBarberListItem(b),
+        b,
+        opts.lat,
+        opts.lng,
+      );
+      if (opts.favoriteIds) item.is_favorite = opts.favoriteIds.has(b.ID);
+      return item;
+    });
+
+    if (opts.sort === 'distance' && opts.lat !== undefined) {
+      items.sort((a, b) => {
+        const da = a.distance_km as number | null;
+        const db = b.distance_km as number | null;
+        if (da == null) return db == null ? 0 : 1;
+        if (db == null) return -1;
+        return da - db;
+      });
+    }
+
+    return items;
   }
 
   async findServicesById(barberId: string) {
@@ -140,6 +209,8 @@ export class BarbersService {
       city: barber!.CITY,
       state: barber!.STATE,
       zip_code: barber!.ZIP_CODE,
+      latitude: barber!.LATITUDE,
+      longitude: barber!.LONGITUDE,
     };
   }
 }
