@@ -11,8 +11,8 @@ export class Barber extends BaseEntity {
   @Column({ unique: true })
   CNPJ: string;
 
-  @Column({ type: 'float', default: 0 })
-  RATING: number;
+  @Column({ type: 'float', default: null, nullable: true })
+  RATING: number | null;
 
   @Column({ type: 'varchar' })
   STREET: string;
@@ -41,4 +41,10 @@ export class Barber extends BaseEntity {
   @OneToOne(() => User)
   @JoinColumn()
   USER: User;
+
+  @Column({ type: 'float', nullable: true, default: null })
+  LATITUDE: number | null;
+
+  @Column({ type: 'float', nullable: true, default: null })
+  LONGITUDE: number | null;
 }

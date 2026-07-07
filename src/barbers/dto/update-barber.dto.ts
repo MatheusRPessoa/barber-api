@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNotEmpty, IsOptional, IsString, Matches } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsOptional, IsString, Matches, Max, Min } from 'class-validator';
 
 export class UpdateBarberDto {
   @ApiPropertyOptional({ example: 'João Silva' })
@@ -64,4 +64,18 @@ export class UpdateBarberDto {
     message: 'ZIP_CODE must be in format 00000-000',
   })
   ZIP_CODE?: string;
+
+  @ApiPropertyOptional({ example: -23.55 })
+  @IsOptional()
+  @IsNumber()
+  @Min(-90)
+  @Max(90)
+  LATITUDE?: number;
+
+  @ApiPropertyOptional({ example: -46.63 })
+  @IsOptional()
+  @IsNumber()
+  @Min(-180)
+  @Max(180)
+  LONGITUDE?: number;
 }
