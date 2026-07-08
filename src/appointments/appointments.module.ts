@@ -7,9 +7,16 @@ import { Barber } from '../barbers/entities/barber.entity';
 import { Service } from '../services/entities/service.entity';
 import { User } from '../users/entities/user.entity';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { CouponsModule } from '../coupons/coupons.module';
+import { ReviewsModule } from '../reviews/reviews.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Appointment, Barber, Service, User]), NotificationsModule],
+  imports: [
+    TypeOrmModule.forFeature([Appointment, Barber, Service, User]),
+    NotificationsModule,
+    CouponsModule,
+    ReviewsModule,
+  ],
   controllers: [AppointmentsController],
   providers: [AppointmentsService],
 })

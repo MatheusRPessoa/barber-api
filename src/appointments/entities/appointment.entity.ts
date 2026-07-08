@@ -3,6 +3,7 @@ import { BaseEntity } from '../../common/entities/base.entity';
 import { Barber } from '../../barbers/entities/barber.entity';
 import { User } from '../../users/entities/user.entity';
 import { Service } from '../../services/entities/service.entity';
+import { Coupon } from '../../coupons/entities/coupon.entity';
 
 export enum AppointmentStatus {
   PENDING = 'PENDING',
@@ -35,4 +36,7 @@ export class Appointment extends BaseEntity {
     default: AppointmentStatus.PENDING,
   })
   APPOINTMENT_STATUS: AppointmentStatus;
+
+  @ManyToOne(() => Coupon, { nullable: true })
+  COUPON: Coupon | null;
 }

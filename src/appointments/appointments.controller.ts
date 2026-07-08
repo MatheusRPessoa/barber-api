@@ -26,6 +26,8 @@ import { UpdateAppointmentStatusDto } from './dto/update-appointment-status.dto'
 import { AppointmentStatus } from './entities/appointment.entity';
 import { UserType } from '../users/entities/user.entity';
 import type { AuthenticatedRequest } from '../common/interfaces/authenticated-request.interface';
+import { ReviewsService } from '../reviews/reviews.service';
+import { CreateReviewDto } from '../reviews/dto/create-review.dto';
 
 const APPOINTMENT_BASE = {
   id: 'a3bb189e-8bf9-3888-9912-ace4e6543002',
@@ -34,8 +36,18 @@ const APPOINTMENT_BASE = {
   appointment_status: 'PENDING',
 };
 const SERVICES_INLINE = [
-  { id: 'b4cc290f-9cf0-4999-0023-bdf5f7654113', name: 'Corte de cabelo', price: 35.0, duration_minutes: 30 },
-  { id: 'c5dd391g-0dh1-5000-1134-ceg6g8765224', name: 'Barba', price: 25.0, duration_minutes: 20 },
+  {
+    id: 'b4cc290f-9cf0-4999-0023-bdf5f7654113',
+    name: 'Corte de cabelo',
+    price: 35.0,
+    duration_minutes: 30,
+  },
+  {
+    id: 'c5dd391g-0dh1-5000-1134-ceg6g8765224',
+    name: 'Barba',
+    price: 25.0,
+    duration_minutes: 20,
+  },
 ];
 const BARBER_INLINE = {
   id: 'c5dd391g-8cf0-4999-0023-bdf5f7654113',
@@ -57,7 +69,10 @@ const NOT_FOUND_EXAMPLE = {
 @Controller('appointments')
 @UseGuards(JwtAuthGuard)
 export class AppointmentsController {
-  constructor(private readonly appointmentsService: AppointmentsService) {}
+  constructor(
+    private readonly appointmentsService: AppointmentsService,
+    private readonly reviewsService: ReviewsService,
+  ) {}
 
   @Get()
   @ApiOperation({
@@ -126,7 +141,11 @@ export class AppointmentsController {
     description: 'Agendamentos retornados com sucesso',
     schema: {
       example: [
-        { ...APPOINTMENT_BASE, barber: BARBER_INLINE, services: SERVICES_INLINE },
+        {
+          ...APPOINTMENT_BASE,
+          barber: BARBER_INLINE,
+          services: SERVICES_INLINE,
+        },
         {
           ...APPOINTMENT_BASE,
           id: 'b4cc290f-9cf0-4999-0023-bdf5f7654113',
@@ -300,5 +319,25 @@ export class AppointmentsController {
     @Body() dto: UpdateAppointmentStatusDto,
   ) {
     return this.appointmentsService.updateStatus(id, dto.STATUS);
+  }
+
+  @Post(':id/review')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserType.CLIENT)
+  @ApiOperation({
+    summary: 'Avaliar agendamento concluído',
+    description:
+      'Só o cliente dono do agendamento (403), só COMPLETED (400), uma avaliação por agendamento (409)',
+  })
+  @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
+  @ApiResponse({ status: 400, description: 'Appointment not completed' })
+  @ApiResponse({ status: 403, description: 'Appointment of other client' })
+  @ApiResponse({ status: 409, description: 'Appointment already reviewed' })
+  createReview(
+    @Param('id') id: string,
+    @Body() dto: CreateReviewDto,
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return this.reviewsService.create(id, req.user.sub, dto);
   }
 }

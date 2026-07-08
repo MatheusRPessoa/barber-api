@@ -1,5 +1,12 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { ArrayMinSize, IsArray, IsString, IsUUID, Matches } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  ArrayMinSize,
+  IsArray,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Matches,
+} from 'class-validator';
 
 export class CreateAppointmentDto {
   @ApiProperty({
@@ -13,7 +20,10 @@ export class CreateAppointmentDto {
   @ApiProperty({
     type: [String],
     description: 'IDs dos serviços desejados (mínimo 1)',
-    example: ['b4cc290f-9cf0-4999-0023-bdf5f7654113', 'c5dd391g-0dh1-5000-1134-ceg6g8765224'],
+    example: [
+      'b4cc290f-9cf0-4999-0023-bdf5f7654113',
+      'c5dd391g-0dh1-5000-1134-ceg6g8765224',
+    ],
   })
   @IsArray()
   @ArrayMinSize(1)
@@ -32,4 +42,12 @@ export class CreateAppointmentDto {
   @IsString()
   @Matches(/^\d{2}:\d{2}$/, { message: 'TIME must be HH:MM' })
   TIME: string;
+
+  @ApiPropertyOptional({
+    example: 'PROMO10',
+    description: 'Código de cupom da barbearia',
+  })
+  @IsOptional()
+  @IsString()
+  COUPON_CODE?: string;
 }

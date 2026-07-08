@@ -11,6 +11,9 @@ import { User, UserType } from '../users/entities/user.entity';
 import { Barber } from '../barbers/entities/barber.entity';
 import { Service } from '../services/entities/service.entity';
 import { NotificationsService } from '../notifications/notifications.service';
+import { Coupon } from '../coupons/entities/coupon.entity';
+import { CouponsService } from '../coupons/coupons.service';
+import { ReviewsService } from '../reviews/reviews.service';
 
 function mapService(s: Service) {
   return {
@@ -18,6 +21,20 @@ function mapService(s: Service) {
     name: s.NAME,
     price: +s.PRICE,
     duration_minutes: s.DURATION_MINUTES,
+  };
+}
+
+function priceFields(services: Service[], coupon?: Coupon | null) {
+  const original = +services.reduce((sum, s) => sum + +s.PRICE, 0).toFixed(2);
+  const total = coupon
+    ? +(original * (1 - coupon.DISCOUNT_PERCENT / 100)).toFixed(2)
+    : original;
+  return {
+    coupon: coupon
+      ? { code: coupon.CODE, discount_percent: coupon.DISCOUNT_PERCENT }
+      : null,
+    original_price: original,
+    total_price: total,
   };
 }
 
@@ -29,6 +46,8 @@ export class AppointmentsService {
     @InjectRepository(Service) private servicesRepo: Repository<Service>,
     @InjectRepository(User) private usersRepo: Repository<User>,
     private notifications: NotificationsService,
+    private couponsService: CouponsService,
+    private reviewsService: ReviewsService,
   ) {}
 
   async findAll(filters: {
@@ -51,6 +70,7 @@ export class AppointmentsService {
       .leftJoinAndSelect('a.BARBER', 'barber')
       .leftJoinAndSelect('a.CLIENT', 'client')
       .leftJoinAndSelect('a.SERVICES', 'services')
+      .leftJoinAndSelect('a.COUPON', 'coupon')
       .orderBy('a.TIME', 'ASC');
 
     if (barberId) qb.andWhere('barber.ID = :barberId', { barberId });
@@ -76,15 +96,20 @@ export class AppointmentsService {
           }
         : null,
       services: a.SERVICES?.map(mapService) ?? [],
+      ...priceFields(a.SERVICES ?? [], a.COUPON),
     }));
   }
 
   async findMine(clientUserId: string) {
     const appointments = await this.repo.find({
       where: { CLIENT: { ID: clientUserId } },
-      relations: { BARBER: true, SERVICES: true },
+      relations: { BARBER: true, SERVICES: true, COUPON: true },
       order: { DATE: 'DESC', TIME: 'DESC' },
     });
+
+    const reviewedIds = await this.reviewsService.reviewedAppointmentIds(
+      appointments.map((a) => a.ID),
+    );
 
     return appointments.map((a) => ({
       id: a.ID,
@@ -96,13 +121,20 @@ export class AppointmentsService {
         shop_name: a.BARBER.SHOP_NAME,
       },
       services: a.SERVICES.map(mapService),
+      reviewed: reviewedIds.has(a.ID),
+      ...priceFields(a.SERVICES, a.COUPON),
     }));
   }
 
   async findOne(id: string) {
     const appointment = await this.repo.findOne({
       where: { ID: id },
-      relations: { BARBER: { USER: true }, CLIENT: true, SERVICES: true },
+      relations: {
+        BARBER: { USER: true },
+        CLIENT: true,
+        SERVICES: true,
+        COUPON: true,
+      },
     });
     if (!appointment) throw new NotFoundException('Appointment not found');
     return this.mapAppointment(appointment);
@@ -121,6 +153,7 @@ export class AppointmentsService {
         ? { id: a.CLIENT.ID, name: a.CLIENT.NAME, email: a.CLIENT.EMAIL }
         : null,
       services: a.SERVICES?.map(mapService) ?? [],
+      ...priceFields(a.SERVICES ?? [], a.COUPON),
     };
   }
 
@@ -163,6 +196,15 @@ export class AppointmentsService {
     if (conflict)
       throw new BadRequestException('This time slot is already booked');
 
+    let coupon: Coupon | null = null;
+    if (dto.COUPON_CODE) {
+      coupon = await this.couponsService.validateForClient(
+        dto.COUPON_CODE,
+        dto.BARBER_ID,
+        clientUserId,
+      );
+    }
+
     const appointment = await this.repo.save(
       this.repo.create({
         BARBER: barber,
@@ -171,8 +213,13 @@ export class AppointmentsService {
         DATE: dto.DATE,
         TIME: dto.TIME,
         APPOINTMENT_STATUS: AppointmentStatus.PENDING,
+        COUPON: coupon,
       }),
     );
+
+    if (coupon) {
+      await this.couponsService.registerRedemption(coupon.ID, clientUserId);
+    }
 
     void this.notifications.send(
       barber.USER?.PUSH_TOKEN,
@@ -191,13 +238,14 @@ export class AppointmentsService {
         id: barber.ID,
         shop_name: barber.SHOP_NAME,
       },
+      ...priceFields(services, coupon),
     };
   }
 
   async updateStatus(id: string, status: AppointmentStatus) {
     const entity = await this.repo.findOne({
       where: { ID: id },
-      relations: { BARBER: true, CLIENT: true, SERVICES: true },
+      relations: { BARBER: true, CLIENT: true, SERVICES: true, COUPON: true },
     });
     if (!entity) throw new NotFoundException('Appointment not found');
 
@@ -225,7 +273,10 @@ export class AppointmentsService {
     entity.APPOINTMENT_STATUS = status;
     await this.repo.save(entity);
 
-    if (status === AppointmentStatus.CONFIRMED || status === AppointmentStatus.CANCELLED) {
+    if (
+      status === AppointmentStatus.CONFIRMED ||
+      status === AppointmentStatus.CANCELLED
+    ) {
       const message =
         status === AppointmentStatus.CONFIRMED
           ? 'Seu agendamento foi confirmado!'
