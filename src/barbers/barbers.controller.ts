@@ -24,6 +24,7 @@ import type { AuthenticatedRequest } from '../common/interfaces/authenticated-re
 import { ClientsService } from '../clients/clients.service';
 import { ListBarbersQueryDto } from './dto/list-barbers-query.dto';
 import { UserType } from '../users/entities/user.entity';
+import { ReviewsService } from '../reviews/reviews.service';
 
 @ApiTags('Barbearias')
 @Controller('barbers')
@@ -31,6 +32,7 @@ export class BarbersController {
   constructor(
     private readonly barbersService: BarbersService,
     private readonly clientsService: ClientsService,
+    private readonly reviewsService: ReviewsService,
   ) {}
 
   @Get('me')
@@ -62,7 +64,10 @@ export class BarbersController {
       },
     },
   })
-  @ApiResponse({ status: 404, description: 'Perfil de barbeiro não encontrado' })
+  @ApiResponse({
+    status: 404,
+    description: 'Perfil de barbeiro não encontrado',
+  })
   getMe(@Request() req: AuthenticatedRequest) {
     return this.barbersService.getMe(req.user.sub);
   }
@@ -269,5 +274,39 @@ export class BarbersController {
   })
   update(@Request() req: AuthenticatedRequest, @Body() dto: UpdateBarberDto) {
     return this.barbersService.update(req.user.sub, dto);
+  }
+
+  @Get('trending')
+  @UseGuards(OptionalJwtAuthGuard)
+  @ApiOperation({
+    summary: 'Barbearias em alta',
+    description:
+      'Top 10 por agendamentos CONFIRMED/COMPLETED nos últimos 30 dias, desempate por rating. Mesmo shape do GET /barbers + recent_appointments',
+  })
+  async findTrending(
+    @Query() query: ListBarbersQueryDto,
+    @Request() req: { user?: { sub: string; type: UserType } },
+  ) {
+    const favoriteIds =
+      req.user?.type === UserType.CLIENT
+        ? await this.clientsService.getFavoriteIds(req.user.sub)
+        : undefined;
+
+    return this.barbersService.findTrending({
+      lat: query.lat,
+      lng: query.lng,
+      favoriteIds,
+    });
+  }
+
+  @Get(':id/reviews')
+  @ApiOperation({
+    summary: 'Listar avaliações de uma barbearia',
+    description: 'Público. Mais recentes primeiro',
+  })
+  @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
+  @ApiResponse({ status: 404, description: 'Barbearia não encontrada' })
+  findReviews(@Param('id') id: string) {
+    return this.reviewsService.findByBarber(id);
   }
 }

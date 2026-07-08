@@ -82,31 +82,33 @@ export class BarbersService {
     const barber = await this.findByUserId(userId);
     if (!barber) throw new NotFoundException('Barber profile not found');
 
-      return {
-        id: barber.ID,
-        shop_name: barber.SHOP_NAME,
-        cnpj: barber.CNPJ,
-        rating: barber.RATING,
-        street: barber.STREET,
-        number: barber.NUMBER,
-        complement: barber.COMPLEMENT ?? null,
-        neighborhood: barber.NEIGHBORHOOD,
-        city: barber.CITY,
-        state: barber.STATE,
-        zip_code: barber.ZIP_CODE,
-        name: barber.USER.NAME,
-        email: barber.USER.EMAIL,
-        latitude: barber.LATITUDE,
-        longitude: barber.LONGITUDE,
-      };
-    }
+    return {
+      id: barber.ID,
+      shop_name: barber.SHOP_NAME,
+      cnpj: barber.CNPJ,
+      rating: barber.RATING,
+      street: barber.STREET,
+      number: barber.NUMBER,
+      complement: barber.COMPLEMENT ?? null,
+      neighborhood: barber.NEIGHBORHOOD,
+      city: barber.CITY,
+      state: barber.STATE,
+      zip_code: barber.ZIP_CODE,
+      name: barber.USER.NAME,
+      email: barber.USER.EMAIL,
+      latitude: barber.LATITUDE,
+      longitude: barber.LONGITUDE,
+    };
+  }
 
-  async findAll(opts: {
-    lat?: number;
-    lng?: number;
-    sort?: 'distance';
-    favoriteIds?: Set<string>;
-  } = {}) {
+  async findAll(
+    opts: {
+      lat?: number;
+      lng?: number;
+      sort?: 'distance';
+      favoriteIds?: Set<string>;
+    } = {},
+  ) {
     const barbers = await this.repo.find({
       relations: { SERVICES: true },
       order: { RATING: { direction: 'DESC', nulls: 'LAST' } },
@@ -212,5 +214,60 @@ export class BarbersService {
       latitude: barber!.LATITUDE,
       longitude: barber!.LONGITUDE,
     };
+  }
+
+  async findTrending(
+    opts: { lat?: number; lng?: number; favoriteIds?: Set<string> } = {},
+  ) {
+    const now = Date.now();
+    const from = new Date(now - 30 * 86_400_000).toISOString().split('T')[0];
+    const to = new Date(now).toISOString().split('T')[0];
+
+    const rows = await this.appointmentsRepo
+      .createQueryBuilder('a')
+      .innerJoin('a.BARBER', 'barber')
+      .select('barber.ID', 'barber_id')
+      .addSelect('COUNT(*)', 'recent_appointments')
+      .where('a.APPOINTMENT_STATUS IN (:...statuses)', {
+        statuses: [AppointmentStatus.CONFIRMED, AppointmentStatus.COMPLETED],
+      })
+      .andWhere('a.DATE BETWEEN :from AND :to', { from, to })
+      .groupBy('barber.ID')
+      .getRawMany<{ barber_id: string; recent_appointments: string }>();
+
+    if (rows.length === 0) return [];
+
+    const counts = new Map(
+      rows.map((r) => [r.barber_id, +r.recent_appointments]),
+    );
+
+    const barbers = await this.repo.find({
+      where: { ID: In([...counts.keys()]) },
+      relations: { SERVICES: true },
+    });
+
+    const items = barbers.map((b) => {
+      const item: Record<string, unknown> = withDistance(
+        mapBarberListItem(b),
+        b,
+        opts.lat,
+        opts.lng,
+      );
+      item.recent_appointments = counts.get(b.ID) ?? 0;
+      if (opts.favoriteIds) item.is_favorite = opts.favoriteIds.has(b.ID);
+      return item;
+    });
+
+    items.sort((a, b) => {
+      const diff =
+        (b.recent_appointments as number) - (a.recent_appointments as number);
+      if (diff !== 0) return diff;
+      return (
+        ((b.rating as number | null) ?? -1) -
+        ((a.rating as number | null) ?? -1)
+      );
+    });
+
+    return items.slice(0, 10);
   }
 }
