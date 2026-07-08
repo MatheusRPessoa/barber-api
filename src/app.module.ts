@@ -15,6 +15,8 @@ import { Client } from './clients/entities/client.entity';
 import { ClientsModule } from './clients/clients.module';
 import { Coupon } from './coupons/entities/coupon.entity';
 import { CouponsModule } from './coupons/coupons.module';
+import { Review } from './reviews/entities/review.entity';
+import { CouponRedemption } from './coupons/entities/coupon-redemption.entity';
 
 @Module({
   imports: [
@@ -38,10 +40,18 @@ import { CouponsModule } from './coupons/coupons.module';
                   },
                 },
             serializers: {
-              req: (req) => ({ id: req.id, method: req.method, url: req.url }),
-              res: (res) => ({ statusCode: res.statusCode }),
+              req: (req: { id: string; method: string; url: string }) => ({
+                id: req.id,
+                method: req.method,
+                url: req.url,
+              }),
+              res: (res: { statusCode: number }) => ({
+                statusCode: res.statusCode,
+              }),
             },
-            autoLogging: { ignore: (req) => req.url === '/health' },
+            autoLogging: {
+              ignore: (req: { url?: string }) => req.url === '/health',
+            },
             customProps: () => ({ context: 'HTTP' }),
           },
         };
@@ -57,7 +67,16 @@ import { CouponsModule } from './coupons/coupons.module';
         username: config.get<string>('DB_USER'),
         password: config.get<string>('DB_PASS'),
         database: config.get<string>('DB_NAME'),
-        entities: [User, Barber, Client, Service, Appointment, Coupon],
+        entities: [
+          User,
+          Barber,
+          Client,
+          Service,
+          Appointment,
+          Coupon,
+          Review,
+          CouponRedemption,
+        ],
         synchronize: true,
       }),
     }),
