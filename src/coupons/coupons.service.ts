@@ -11,6 +11,8 @@ import { Coupon } from './entities/coupon.entity';
 import { BarbersService } from '../barbers/barbers.service';
 import { CreateCouponDto } from './dto/create-coupon.dto';
 import { UpdateCouponDto } from './dto/update-coupon.dto';
+import { CouponRedemption } from './entities/coupon-redemption.entity';
+import { User } from '../users/entities/user.entity';
 
 const MS_PER_DAY = 86_400_000;
 
@@ -33,6 +35,8 @@ function mapCoupon(c: Coupon) {
 export class CouponsService {
   constructor(
     @InjectRepository(Coupon) private repo: Repository<Coupon>,
+    @InjectRepository(CouponRedemption)
+    private redemptionsRepo: Repository<CouponRedemption>,
     private barbersService: BarbersService,
   ) {}
 
@@ -110,5 +114,46 @@ export class CouponsService {
   async remove(userId: string, couponId: string) {
     const coupon = await this.getOwnedCoupon(userId, couponId);
     await this.repo.remove(coupon);
+  }
+
+  async validateForClient(
+    code: string,
+    barberId: string,
+    clientUserId: string,
+  ) {
+    const coupon = await this.repo.findOne({
+      where: {
+        CODE: code,
+        ACTIVE: true,
+        VALID_UNTIL: MoreThanOrEqual(this.today()),
+        BARBER: { ID: barberId },
+      },
+    });
+    if (!coupon) throw new BadRequestException('Invalid or expired coupon');
+
+    const used = await this.redemptionsRepo.findOne({
+      where: { COUPON: { ID: coupon.ID }, CLIENT: { ID: clientUserId } },
+    });
+    if (used) throw new ConflictException('Coupon already used');
+
+    return coupon;
+  }
+
+  async validate(code: string, barberId: string, clientUserId: string) {
+    const coupon = await this.validateForClient(code, barberId, clientUserId);
+    return {
+      code: coupon.CODE,
+      discount_percent: coupon.DISCOUNT_PERCENT,
+      valid_until: coupon.VALID_UNTIL,
+    };
+  }
+
+  async registerRedemption(couponId: string, clientUserId: string) {
+    await this.redemptionsRepo.save(
+      this.redemptionsRepo.create({
+        COUPON: { ID: couponId } as Coupon,
+        CLIENT: { ID: clientUserId } as User,
+      }),
+    );
   }
 }

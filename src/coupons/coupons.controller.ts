@@ -7,6 +7,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Request,
   UseGuards,
 } from '@nestjs/common';
@@ -19,6 +20,7 @@ import { CouponsService } from './coupons.service';
 import { CreateCouponDto } from './dto/create-coupon.dto';
 import { UpdateCouponDto } from './dto/update-coupon.dto';
 import type { AuthenticatedRequest } from '../common/interfaces/authenticated-request.interface';
+import { ValidateCouponQueryDto } from './dto/validate-coupon-query.dto';
 
 @ApiTags('Cupons')
 @Controller('coupons')
@@ -33,6 +35,26 @@ export class CouponsController {
   })
   findAll() {
     return this.couponsService.findAllPublic();
+  }
+
+  @Get('validate')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserType.CLIENT)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({
+    summary: 'Validar cupom antes de confirmar agendamento',
+    description:
+      'Cupom deve existir, estar ativo, não expirado e pertencer à barbearia. Uso único por cliente: se já usado → 409',
+  })
+  validate(
+    @Request() req: AuthenticatedRequest,
+    @Query() query: ValidateCouponQueryDto,
+  ) {
+    return this.couponsService.validate(
+      query.code,
+      query.barberId,
+      req.user.sub,
+    );
   }
 
   @Post()
