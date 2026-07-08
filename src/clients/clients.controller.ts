@@ -1,8 +1,13 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
+  Param,
   Patch,
+  Post,
+  Query,
   Request,
   UseGuards,
 } from '@nestjs/common';
@@ -16,6 +21,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ClientsService } from './clients.service';
 import { UpdateClientDto } from './dto/update-client.dto';
 import type { AuthenticatedRequest } from '../common/interfaces/authenticated-request.interface';
+import { ListBarbersQueryDto } from '../barbers/dto/list-barbers-query.dto';
 
 @ApiTags('Clientes')
 @Controller('clients')
@@ -93,5 +99,57 @@ export class ClientsController {
   })
   update(@Request() req: AuthenticatedRequest, @Body() dto: UpdateClientDto) {
     return this.clientsService.update(req.user.sub, dto);
+  }
+
+  @Post('me/favorites/:barberId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @HttpCode(204)
+  @ApiOperation({
+    summary: 'Favoritar barbearia',
+    description: 'Idempotente - favoritar duas vezes não duplica nem gera erro',
+  })
+  @ApiResponse({ status: 204, description: 'Barbearia favoritada' })
+  @ApiResponse({ status: 404, description: 'Barbearia não encontrada' })
+  addFavorite(
+    @Request() req: AuthenticatedRequest,
+    @Param('barberId') barberId: string,
+  ) {
+    return this.clientsService.addFavorite(req.user.sub, barberId);
+  }
+
+  @Delete('me/favorites/:barberId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @HttpCode(204)
+  @ApiOperation({
+    summary: 'Desfavoritar barbearia',
+    description: 'Idempotente - remover algo que não é favoritor retorna 204',
+  })
+  @ApiResponse({ status: 204, description: 'Barbearia removida dos favoritos' })
+  removeFavorite(
+    @Request() req: AuthenticatedRequest,
+    @Param('barberId') barberId: string,
+  ) {
+    return this.clientsService.removeFavorite(req.user.sub, barberId);
+  }
+
+  @Get('me/favorites')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({
+    summary: 'Listar barbearias favoritas',
+    description:
+      'Mesmo shape dos itens do GET /barbers. Aceita lat/lng para incluir distance_km',
+  })
+  listFavorites(
+    @Request() req: AuthenticatedRequest,
+    @Query() query: ListBarbersQueryDto,
+  ) {
+    return this.clientsService.listFavorites(
+      req.user.sub,
+      query.lat,
+      query.lng,
+    );
   }
 }
