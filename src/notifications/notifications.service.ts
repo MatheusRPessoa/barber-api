@@ -19,7 +19,9 @@ export class NotificationsService {
         body: JSON.stringify({ to: pushToken, title, body, data }),
       });
     } catch (err) {
-      this.logger.warn(`Failed to send push notification: ${(err as Error).message}`);
+      this.logger.warn(
+        `Failed to send push notification: ${(err as Error).message}`,
+      );
     }
   }
 }

@@ -45,7 +45,7 @@ export class AuthService {
     if (dto.TYPE === UserType.CLIENT) {
       const existingCpf = await this.clientsRepo.findOne({
         where: { CPF: dto.CPF },
-      })
+      });
       if (existingCpf) throw new ConflictException('CPF already in use');
     }
 

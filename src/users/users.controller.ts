@@ -1,4 +1,12 @@
-import { Body, Controller, Get, HttpCode, Post, Request, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Post,
+  Request,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -56,10 +64,14 @@ export class UsersController {
   @HttpCode(200)
   @ApiOperation({
     summary: 'Salvar push token',
-    description: 'Registra o token do dispositivo Expo para envio de notificações push',
+    description:
+      'Registra o token do dispositivo Expo para envio de notificações push',
   })
   @ApiResponse({ status: 200, description: 'Token salvo com sucesso' })
-  @ApiResponse({ status: 401, description: 'Token de sessão não encontrado ou sessão inválida/expirada' })
+  @ApiResponse({
+    status: 401,
+    description: 'Token de sessão não encontrado ou sessão inválida/expirada',
+  })
   savePushToken(
     @Request() req: AuthenticatedRequest,
     @Body() dto: SavePushTokenDto,

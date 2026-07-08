@@ -48,7 +48,7 @@ export class RegisterDto {
     example: 'Barbearia do João',
     description: 'Obrigatório para TYPE=BARBER',
   })
-  @ValidateIf((o) => o.TYPE === UserType.BARBER)
+  @ValidateIf((o: RegisterDto) => o.TYPE === UserType.BARBER)
   @IsString()
   @IsNotEmpty({ message: 'SHOP_NAME is required for barbers' })
   SHOP_NAME?: string;
@@ -58,7 +58,7 @@ export class RegisterDto {
     description:
       'Formato XX.XXX.XXX/XXXX-XX ou 14 dígitos. Obrigatório para TYPE=BARBER',
   })
-  @ValidateIf((o) => o.TYPE === UserType.BARBER)
+  @ValidateIf((o: RegisterDto) => o.TYPE === UserType.BARBER)
   @IsString()
   @IsNotEmpty({ message: 'CNPJ is required for barbers' })
   @Matches(/^\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}$|^\d{14}$/, {
@@ -71,7 +71,7 @@ export class RegisterDto {
     description:
       'Formato XXX.XXX.XXX-XX ou 11 dígitos. Obrigatório para TYPE=CLIENT',
   })
-  @ValidateIf((o) => o.TYPE === UserType.CLIENT)
+  @ValidateIf((o: RegisterDto) => o.TYPE === UserType.CLIENT)
   @IsString()
   @IsNotEmpty({ message: 'CPF is required for clients' })
   @Matches(/^\d{3}\.\d{3}\.\d{3}-\d{2}$|^\d{11}$/, {

@@ -24,7 +24,10 @@ export class UpdateCouponDto {
   @Max(100)
   DISCOUNT_PERCENT?: number;
 
-  @ApiPropertyOptional({ example: '2026-07-20', description: 'Formato YYYY-MM-DD' })
+  @ApiPropertyOptional({
+    example: '2026-07-20',
+    description: 'Formato YYYY-MM-DD',
+  })
   @IsOptional()
   @Matches(/^\d{4}-\d{2}-\d{2}$/, {
     message: 'VALID_UNTIL must be in format YYYY-MM-DD',
