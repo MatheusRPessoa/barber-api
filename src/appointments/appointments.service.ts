@@ -1,11 +1,14 @@
 import {
   BadRequestException,
+  ForbiddenException,
+  HttpException,
+  HttpStatus,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
-import { Appointment, AppointmentStatus } from './entities/appointment.entity';
+import { Appointment } from './entities/appointment.entity';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { User, UserType } from '../users/entities/user.entity';
 import { Barber } from '../barbers/entities/barber.entity';
@@ -14,6 +17,15 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { Coupon } from '../coupons/entities/coupon.entity';
 import { CouponsService } from '../coupons/coupons.service';
 import { ReviewsService } from '../reviews/reviews.service';
+import {
+  AppointmentStatus,
+  BARBER_CANCEL_REASONS,
+  CANCEL_REASON_LABELS,
+  CancelledBy,
+  CancelReason,
+  CLIENT_CANCEL_REASONS,
+} from './enums/appointment-status.enum';
+import { UpdateAppointmentStatusDto } from './dto/update-appointment-status.dto';
 
 function mapService(s: Service) {
   return {
@@ -22,6 +34,15 @@ function mapService(s: Service) {
     price: +s.PRICE,
     duration_minutes: s.DURATION_MINUTES,
   };
+}
+
+const MAX_COMPLETION_ATTEMPTS = 5;
+const COMPLETION_LOCK_MINUTES = 15;
+
+function generateCompletionCode(): string {
+  return Math.floor(Math.random() * 10000)
+    .toString()
+    .padStart(4, '0');
 }
 
 function priceFields(services: Service[], coupon?: Coupon | null) {
@@ -97,6 +118,11 @@ export class AppointmentsService {
         : null,
       services: a.SERVICES?.map(mapService) ?? [],
       ...priceFields(a.SERVICES ?? [], a.COUPON),
+      cancel_reason: a.CANCEL_REASON ?? null,
+      cancel_note: a.CANCEL_NOTE ?? null,
+      cancelled_by: a.CANCELLED_BY ?? null,
+      cancelled_at: a.CANCELLED_AT ?? null,
+      completed_at: a.COMPLETED_AT ?? null,
     }));
   }
 
@@ -123,10 +149,20 @@ export class AppointmentsService {
       services: a.SERVICES.map(mapService),
       reviewed: reviewedIds.has(a.ID),
       ...priceFields(a.SERVICES, a.COUPON),
+      cancel_reason: a.CANCEL_REASON ?? null,
+      cancel_note: a.CANCEL_NOTE ?? null,
+      cancelled_by: a.CANCELLED_BY ?? null,
+      cancelled_at: a.CANCELLED_AT ?? null,
+      completed_at: a.COMPLETED_AT ?? null,
+      completion_code: a.COMPLETION_CODE ?? null,
     }));
   }
 
-  async findOne(id: string) {
+  async findOne(
+    id: string,
+    requestUserId: string,
+    requestUserType: UserType,
+  ) {
     const appointment = await this.repo.findOne({
       where: { ID: id },
       relations: {
@@ -137,10 +173,15 @@ export class AppointmentsService {
       },
     });
     if (!appointment) throw new NotFoundException('Appointment not found');
-    return this.mapAppointment(appointment);
+
+    const isOwnerClient =
+      requestUserType === UserType.CLIENT &&
+      appointment.CLIENT?.ID === requestUserId;
+
+    return this.mapAppointment(appointment, isOwnerClient);
   }
 
-  private mapAppointment(a: Appointment) {
+  private mapAppointment(a: Appointment, incluideCompletionCode = false) {
     return {
       id: a.ID,
       date: a.DATE,
@@ -154,6 +195,13 @@ export class AppointmentsService {
         : null,
       services: a.SERVICES?.map(mapService) ?? [],
       ...priceFields(a.SERVICES ?? [], a.COUPON),
+      cancel_reason: a.CANCEL_REASON ?? null,
+      cancel_note: a.CANCEL_NOTE ?? null,
+      cancelled_by: a.CANCELLED_BY ?? null,
+      cancelled_at: a.CANCELLED_AT ?? null,
+      ...(incluideCompletionCode
+        ? { completion_code: a.COMPLETION_CODE ?? null }
+        : {}),
     };
   }
 
@@ -242,13 +290,24 @@ export class AppointmentsService {
     };
   }
 
-  async updateStatus(id: string, status: AppointmentStatus) {
+  async updateStatus(
+    id: string,
+    dto: UpdateAppointmentStatusDto,
+    requestUserId: string,
+    requestUserType: UserType,
+  ) {
     const entity = await this.repo.findOne({
       where: { ID: id },
-      relations: { BARBER: true, CLIENT: true, SERVICES: true, COUPON: true },
+      relations: {
+        BARBER: { USER: true },
+        CLIENT: true,
+        SERVICES: true,
+        COUPON: true,
+      },
     });
     if (!entity) throw new NotFoundException('Appointment not found');
 
+    const status = dto.STATUS;
     const current = entity.APPOINTMENT_STATUS;
 
     const allowed: Record<AppointmentStatus, AppointmentStatus[]> = {
@@ -270,25 +329,133 @@ export class AppointmentsService {
       );
     }
 
+    if (status === AppointmentStatus.CANCELLED) {
+      if (requestUserType === UserType.CLIENT) {
+        if (entity.CLIENT?.ID !== requestUserId) {
+          throw new ForbiddenException('Forbidden resource');
+        }
+      } else if (entity.BARBER?.USER?.ID !== requestUserId) {
+        throw new ForbiddenException('Forbidden resource');
+      }
+
+      const reason = dto.CANCEL_REASON;
+      if (!reason) {
+        throw new BadRequestException('Cancellation reason required');
+      }
+      const validReasons =
+        requestUserType === UserType.CLIENT
+          ? CLIENT_CANCEL_REASONS
+          : BARBER_CANCEL_REASONS;
+      if (!validReasons.includes(reason)) {
+        throw new BadRequestException(
+          'Invalid cancellation reason for this role',
+        );
+      }
+
+      const note = dto.CANCEL_NOTE?.trim() || null;
+      if (reason === CancelReason.OTHER && !note) {
+        throw new BadRequestException('Cancellation note required');
+      }
+
+      entity.CANCEL_REASON = reason;
+      entity.CANCEL_NOTE = note;
+      entity.CANCELLED_BY =
+        requestUserType === UserType.CLIENT
+          ? CancelledBy.CLIENT
+          : CancelledBy.BARBER;
+      entity.CANCELLED_AT = new Date();
+      entity.APPOINTMENT_STATUS = status;
+      await this.repo.save(entity);
+
+      const cancelledByClient = entity.CANCELLED_BY === CancelledBy.CLIENT;
+      const recipientToken = cancelledByClient
+        ? entity.BARBER?.USER?.PUSH_TOKEN
+        : entity.CLIENT?.PUSH_TOKEN;
+      const cancellerName = cancelledByClient
+        ? entity.CLIENT?.NAME
+        : entity.BARBER?.SHOP_NAME;
+      const reasonLabel = entity.CANCEL_REASON
+        ? CANCEL_REASON_LABELS[entity.CANCEL_REASON]
+        : '';
+
+      void this.notifications.send(
+        recipientToken,
+        'Agendamento cancelado',
+        `${cancellerName} cancelou o agendamento de ${entity.DATE} às ${entity.TIME}. Motivo: ${reasonLabel}`,
+        { appointmentId: entity.ID },
+      );
+
+      return this.mapAppointment(entity, cancelledByClient);
+    }
+
+    if (status === AppointmentStatus.COMPLETED) {
+      await this.completeAppointment(entity, dto.COMPLETION_CODE, requestUserId);
+      return this.mapAppointment(entity, false);
+    }
+
+    if (status === AppointmentStatus.CONFIRMED && !entity.COMPLETION_CODE) {
+      entity.COMPLETION_CODE = generateCompletionCode();
+    }
     entity.APPOINTMENT_STATUS = status;
     await this.repo.save(entity);
 
-    if (
-      status === AppointmentStatus.CONFIRMED ||
-      status === AppointmentStatus.CANCELLED
-    ) {
-      const message =
-        status === AppointmentStatus.CONFIRMED
-          ? 'Seu agendamento foi confirmado!'
-          : 'Seu agendamento foi cancelado.';
-      void this.notifications.send(
-        entity.CLIENT?.PUSH_TOKEN,
-        'BarberApp',
-        message,
-        { appointmentId: entity.ID },
-      );
+    void this.notifications.send(
+      entity.CLIENT?.PUSH_TOKEN,
+      'BarberApp',
+      'Seu agendamento foi confirmado!',
+      { appointmentId: entity.ID },
+    );
+
+    return this.mapAppointment(entity, false);
+  }
+
+  /**
+   * Conclusão validada por PIN (modelo escrow).
+   *
+   * PONTO DE INTEGRAÇÃO DE PAGAMENTO (futuro):
+   * A transição bem-sucedida para COMPLETED aqui é o único lugar onde o
+   * escrow do pagamento deverá ser liberado ao barbeiro. Plugar o release
+   * logo antes do save final, sem alterar o restante do fluxo.
+   */
+  private async completeAppointment(
+    entity: Appointment,
+    code: string | undefined,
+    requestUserId: string,
+  ) {
+    // Só o barbeiro dono conclui.
+    if (entity.BARBER?.USER?.ID !== requestUserId) {
+      throw new ForbiddenException('Forbidden resource');
     }
 
-    return this.mapAppointment(entity);
+    if (
+      entity.COMPLETION_LOCKED_UNTIL &&
+      entity.COMPLETION_LOCKED_UNTIL > new Date()
+    ) {
+      throw new HttpException('Too many attempts', HttpStatus.TOO_MANY_REQUESTS);
+    }
+
+    if (!code) {
+      throw new BadRequestException('Completion code required');
+    }
+
+    if (code !== entity.COMPLETION_CODE) {
+      entity.COMPLETION_ATTEMPTS = (entity.COMPLETION_ATTEMPTS ?? 0) + 1;
+      if (entity.COMPLETION_ATTEMPTS >= MAX_COMPLETION_ATTEMPTS) {
+        entity.COMPLETION_LOCKED_UNTIL = new Date(
+          Date.now() + COMPLETION_LOCK_MINUTES * 60_000,
+        );
+        entity.COMPLETION_ATTEMPTS = 0; // zera para nova janela após o bloqueio
+      }
+      await this.repo.save(entity);
+      throw new BadRequestException('Invalid completion code');
+    }
+    entity.APPOINTMENT_STATUS = AppointmentStatus.COMPLETED;
+    entity.COMPLETED_AT = new Date();
+    entity.COMPLETION_ATTEMPTS = 0;
+    entity.COMPLETION_LOCKED_UNTIL = null;
+
+    // 💰 HOOK DE PAGAMENTO (futuro): liberar escrow aqui.
+
+    await this.repo.save(entity);
   }
 }

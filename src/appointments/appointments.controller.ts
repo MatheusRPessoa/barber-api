@@ -23,11 +23,11 @@ import { RolesGuard } from '../auth/roles.guard';
 import { AppointmentsService } from './appointments.service';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { UpdateAppointmentStatusDto } from './dto/update-appointment-status.dto';
-import { AppointmentStatus } from './entities/appointment.entity';
 import { UserType } from '../users/entities/user.entity';
 import type { AuthenticatedRequest } from '../common/interfaces/authenticated-request.interface';
 import { ReviewsService } from '../reviews/reviews.service';
 import { CreateReviewDto } from '../reviews/dto/create-review.dto';
+import { AppointmentStatus } from './enums/appointment-status.enum';
 
 const APPOINTMENT_BASE = {
   id: 'a3bb189e-8bf9-3888-9912-ace4e6543002',
@@ -199,8 +199,15 @@ export class AppointmentsController {
     description: 'Agendamento não encontrado',
     schema: { example: NOT_FOUND_EXAMPLE },
   })
-  findOne(@Param('id') id: string) {
-    return this.appointmentsService.findOne(id);
+    @ApiResponse({
+    status: 429,
+    description: 'Muitas tentativas de código de conclusão',
+    schema: {
+      example: { statusCode: 429, message: 'Too many attempts' },
+    },
+  })
+  findOne(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
+    return this.appointmentsService.findOne(id, req.user.sub, req.user.type);
   }
 
   @Post()
@@ -314,11 +321,28 @@ export class AppointmentsController {
     description: 'Agendamento não encontrado',
     schema: { example: NOT_FOUND_EXAMPLE },
   })
+  @ApiResponse({
+    status: 403,
+    description: 'Sem permissão para cancelar este agendamento',
+    schema: {
+      example: {
+        statusCode: 403,
+        message: 'Forbidden resource',
+        error: 'Forbidden',
+      },
+    },
+  })
   updateStatus(
     @Param('id') id: string,
     @Body() dto: UpdateAppointmentStatusDto,
+    @Request() req: AuthenticatedRequest,
   ) {
-    return this.appointmentsService.updateStatus(id, dto.STATUS);
+    return this.appointmentsService.updateStatus(
+      id,
+      dto,
+      req.user.sub,
+      req.user.type,
+    );
   }
 
   @Post(':id/review')
