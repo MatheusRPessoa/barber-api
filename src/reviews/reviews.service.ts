@@ -8,12 +8,10 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Review } from './entities/review.entity';
 import { In, Repository } from 'typeorm';
-import {
-  Appointment,
-  AppointmentStatus,
-} from '../appointments/entities/appointment.entity';
+import { Appointment } from '../appointments/entities/appointment.entity';
 import { Barber } from '../barbers/entities/barber.entity';
 import { CreateReviewDto } from './dto/create-review.dto';
+import { AppointmentStatus } from '../appointments/enums/appointment-status.enum';
 
 @Injectable()
 export class ReviewsService {

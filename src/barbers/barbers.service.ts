@@ -3,13 +3,11 @@ import { haversineKm } from '../common/utils/geo';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { Barber } from './entities/barber.entity';
-import {
-  Appointment,
-  AppointmentStatus,
-} from '../appointments/entities/appointment.entity';
+import { Appointment } from '../appointments/entities/appointment.entity';
 import { UsersService } from '../users/users.service';
 import { UpdateBarberDto } from './dto/update-barber.dto';
 import { Service } from '../services/entities/service.entity';
+import { AppointmentStatus } from '../appointments/enums/appointment-status.enum';
 
 function mapService(s: Service) {
   return {

@@ -6,12 +6,10 @@ import { User, UserType } from './users/entities/user.entity';
 import { Barber } from './barbers/entities/barber.entity';
 import { Client } from './clients/entities/client.entity';
 import { Service } from './services/entities/service.entity';
-import {
-  Appointment,
-  AppointmentStatus,
-} from './appointments/entities/appointment.entity';
+import { Appointment } from './appointments/entities/appointment.entity';
 import { Coupon } from './coupons/entities/coupon.entity';
 import { Review } from './reviews/entities/review.entity';
+import { AppointmentStatus } from './appointments/enums/appointment-status.enum';
 
 function daysFromNow(days: number): string {
   return new Date(Date.now() + days * 86_400_000).toISOString().split('T')[0];
