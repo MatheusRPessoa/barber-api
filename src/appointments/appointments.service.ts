@@ -101,6 +101,10 @@ export class AppointmentsService {
 
     const appointments = await qb.getMany();
 
+    const reviews = await this.reviewsService.reviewsByAppointmentIds(
+      appointments.map((a) => a.ID),
+    );
+
     return appointments.map((a) => ({
       id: a.ID,
       date: a.DATE,
@@ -123,6 +127,8 @@ export class AppointmentsService {
       cancelled_by: a.CANCELLED_BY ?? null,
       cancelled_at: a.CANCELLED_AT ?? null,
       completed_at: a.COMPLETED_AT ?? null,
+      reviewed: reviews.has(a.ID),
+      review: reviews.get(a.ID) ?? null,
     }));
   }
 
@@ -133,7 +139,7 @@ export class AppointmentsService {
       order: { DATE: 'DESC', TIME: 'DESC' },
     });
 
-    const reviewedIds = await this.reviewsService.reviewedAppointmentIds(
+    const reviews = await this.reviewsService.reviewsByAppointmentIds(
       appointments.map((a) => a.ID),
     );
 
@@ -147,7 +153,7 @@ export class AppointmentsService {
         shop_name: a.BARBER.SHOP_NAME,
       },
       services: a.SERVICES.map(mapService),
-      reviewed: reviewedIds.has(a.ID),
+      reviewed: reviews.has(a.ID),
       ...priceFields(a.SERVICES, a.COUPON),
       cancel_reason: a.CANCEL_REASON ?? null,
       cancel_note: a.CANCEL_NOTE ?? null,
@@ -155,6 +161,7 @@ export class AppointmentsService {
       cancelled_at: a.CANCELLED_AT ?? null,
       completed_at: a.COMPLETED_AT ?? null,
       completion_code: a.COMPLETION_CODE ?? null,
+      review: reviews.get(a.ID) ?? null,
     }));
   }
 
@@ -177,11 +184,30 @@ export class AppointmentsService {
     const isOwnerClient =
       requestUserType === UserType.CLIENT &&
       appointment.CLIENT?.ID === requestUserId;
+    
+    const review =
+      (
+        await this.reviewsService.reviewsByAppointmentIds([appointment.ID])
+      ).get(appointment.ID) ?? null;
 
-    return this.mapAppointment(appointment, isOwnerClient);
+    return this.mapAppointment(
+      appointment,
+      isOwnerClient,
+      review,
+      review != null,
+    );
   }
 
-  private mapAppointment(a: Appointment, incluideCompletionCode = false) {
+  private mapAppointment(
+    a: Appointment,
+    includeCompletionCode = false,
+    review: {
+      rating: number;
+      comment: string | null;
+      created_at: Date;
+    } | null = null,
+    reviewed = false,
+  ) {
     return {
       id: a.ID,
       date: a.DATE,
@@ -199,7 +225,10 @@ export class AppointmentsService {
       cancel_note: a.CANCEL_NOTE ?? null,
       cancelled_by: a.CANCELLED_BY ?? null,
       cancelled_at: a.CANCELLED_AT ?? null,
-      ...(incluideCompletionCode
+      completed_at: a.COMPLETED_AT ?? null,
+      reviewed,
+      review,
+      ...(includeCompletionCode
         ? { completion_code: a.COMPLETION_CODE ?? null }
         : {}),
     };

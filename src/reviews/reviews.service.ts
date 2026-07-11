@@ -81,13 +81,22 @@ export class ReviewsService {
     }));
   }
 
-  async reviewedAppointmentIds(appointmentIds: string[]): Promise<Set<string>> {
-    if (appointmentIds.length === 0) return new Set();
+  async reviewsByAppointmentIds(
+    appointmentIds: string[],
+  ): Promise<
+    Map<string, { rating: number; comment: string | null; created_at: Date }>
+  > {
+    if (appointmentIds.length === 0) return new Map();
     const reviews = await this.repo.find({
       where: { APPOINTMENT: { ID: In(appointmentIds) } },
       relations: { APPOINTMENT: true },
     });
-    return new Set(reviews.map((r) => r.APPOINTMENT.ID));
+    return new Map(
+      reviews.map((r) => [
+        r.APPOINTMENT.ID,
+        { rating: r.RATING, comment: r.COMMENT, created_at: r.CRIADO_EM },
+      ]),
+    );
   }
 
   async recalcBarberRating(barberId: string) {
