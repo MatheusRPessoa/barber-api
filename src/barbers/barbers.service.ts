@@ -8,6 +8,7 @@ import { UsersService } from '../users/users.service';
 import { UpdateBarberDto } from './dto/update-barber.dto';
 import { Service } from '../services/entities/service.entity';
 import { AppointmentStatus } from '../appointments/enums/appointment-status.enum';
+import { FollowsService } from '../follows/follows.service';
 
 function mapService(s: Service) {
   return {
@@ -67,6 +68,7 @@ export class BarbersService {
     @InjectRepository(Appointment)
     private appointmentsRepo: Repository<Appointment>,
     private usersService: UsersService,
+    private followsService: FollowsService,
   ) {}
 
   findByUserId(userId: string) {
@@ -105,12 +107,19 @@ export class BarbersService {
       lng?: number;
       sort?: 'distance';
       favoriteIds?: Set<string>;
+      followingIds?: Set<string>;
     } = {},
   ) {
     const barbers = await this.repo.find({
       relations: { SERVICES: true },
       order: { RATING: { direction: 'DESC', nulls: 'LAST' } },
     });
+
+    const ids = barbers.map((b) => b.ID);
+    const [followers, completed] = await Promise.all([
+      this.followsService.followersCountByBarberIds(ids),
+      this.completedCountByBarberIds(ids),
+    ]);
 
     const items = barbers.map((b) => {
       const item: Record<string, unknown> = withDistance(
@@ -119,7 +128,10 @@ export class BarbersService {
         opts.lat,
         opts.lng,
       );
+      item.followers_count = followers.get(b.ID) ?? 0;
+      item.completed_count = completed.get(b.ID) ?? 0;
       if (opts.favoriteIds) item.is_favorite = opts.favoriteIds.has(b.ID);
+      if (opts.followingIds) item.is_following = opts.followingIds.has(b.ID);
       return item;
     });
 
@@ -132,7 +144,6 @@ export class BarbersService {
         return da - db;
       });
     }
-
     return items;
   }
 
@@ -267,5 +278,23 @@ export class BarbersService {
     });
 
     return items.slice(0, 10);
+  }
+
+  private async completedCountByBarberIds(
+    ids: string[],
+  ): Promise<Map<string, number>> {
+    if (ids.length === 0) return new Map();
+    const rows = await this.appointmentsRepo
+      .createQueryBuilder('a')
+      .leftJoin('a.BARBER', 'b')
+      .select('b.ID', 'barber_id')
+      .addSelect('COUNT(*)', 'count')
+      .where('b.ID IN (:...ids)', { ids })
+      .andWhere('a.APPOINTMENT_STATUS = :s', {
+        s: AppointmentStatus.COMPLETED,
+      })
+      .groupBy('b.ID')
+      .getRawMany<{ barber_id: string; count: string }>();
+    return new Map(rows.map((r) => [r.barber_id, +r.count]));
   }
 }
